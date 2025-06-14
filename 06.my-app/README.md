@@ -13,3 +13,10 @@ I have three ideas on how-to send my custom image on the cluster:
 Actually I'm tempted on the DockerHub solution because my code is already public on GitHub and I can use my local resources for other ...
 
 # Your DB migrations
+
+If you'll run a DB on the cluster you also will need to create tables, add data, etc.  
+I always use `migrations` to modify databases but...how can I reach my DB Pod?  
+
+The idea is to develop locally my migrations then, thanks to the port-forward command, send the code through this tunnel.  
+Example:  
+`kubectl port-forward deployment/mydb 55432:5432`
