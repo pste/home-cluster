@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-test
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-verify
+  namespace: web-test
+  labels:
+    app: kube-verify
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kube-verify
+  template:
+    metadata:
+      labels:
+        app: kube-verify
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80 # must match where the container listen to !
+---
+# this version "steals" one IP from my pool, for every service
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: kube-verify
+#  namespace: web-test
+#spec:
+#  selector:
+#    app: kube-verify
+#  ports:
+#    - protocol: TCP
+#      port: 80
+#      targetPort: 80
+#  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-verify
+  namespace: web-test
+spec:
+  selector:
+    app: kube-verify
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80 # must match the containerPort
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-test-ingress
+  namespace: web-test
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body.size: 200M
+spec:
+  ingressClassName: nginx
+  # tls: 
+  #   - hosts:
+  #     - web-test.homelab.net
+  #    secretName: web-test.homelab.net
+  rules:
+    - host: web-test.homelab.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-verify
+                port:
+                  number: 80
