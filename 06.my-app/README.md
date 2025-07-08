@@ -16,7 +16,7 @@ I have three ideas on how-to send my custom image on the cluster:
   PRO: not so hard to implement
   CONS: require some tool (img, kaniko, dind, ..)
 
-~~Actually I'm tempted on the DockerHub solution because my code is already public on GitHub and I can use my local resources for other ...~~
+~~Actually I'm tempted on the DockerHub solution because my code is already public on GitHub and I can use my local resources for other ...~~  
 I'm investigating the "CICD" solution, using a Job (Pod) to launch on demand as a builder/publisher.
 
 # Your DB migrations
