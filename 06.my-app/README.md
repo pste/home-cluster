@@ -20,11 +20,23 @@ I always use `migrations` to modify databases but...how can I reach my DB Pod?
 The idea is to develop locally my migrations then, thanks to the port-forward command, send the code through this tunnel:
 `kubectl port-forward deployment/postgres 5432:5432 -n my-namespace`  
 Note that I used the Deployment, to activate the connection to one of my db pods.  
-With the port-forward active I'm able to run my migration connectiong to `localhost:5432`.
+With the port-forward active I'm able to run my migration connection to `localhost:5432` from my WSL2 machine.
 
-Final note: I'm on WSL2 so to use a pg client from my windows host I needed to allow TCP connections from the outside. Launching:  
-`sudo ufw allow 5432/tcp`  
-on my Ubuntu WSL2 machine I was able to use DBeaver from my Windows host.  
+# DBeaver Client
 
-With the newly implemented firewall rule I was able to connect to localhost:5432 through this route:
+I use CloudBeaver as my db client (docker run etc etc).  
+
+Step 1: to accept TCP connections into my WSL2 world (from the outside) I needed to edit the firewall launching (once):  
+`sudo ufw allow 5432/tcp`
+
+Step 2: port-forward (see previous paragraph)   
+
+Step 3: I'm able to connect to host.docker.internal:5432
+
+This is the route:
 (windows pc) ==> (wsl2) ==> (tunnel k8s) ==> postgres pod
+
+# DDBeaver Client tentative
+- launch container
+- connect to kubelb:5432 (kubelb is on my hosts file)
+- timeout ...
