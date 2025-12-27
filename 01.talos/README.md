@@ -97,3 +97,13 @@ export KUBECONFIG=~/.talosctl/kubeconfig
 
 If you need to modify further your cluster config, just edit the `talosconfig.yaml` and:
 `talosctl apply-config -n $TALOSIP -e $TALOSIP`
+
+## Upgrade to a new version
+Check actual version:  
+`talosctl version`  
+
+Scale down not system pods. To do this scale every application deployment to 0.  
+This step is needed because this is a mono-node cluster.
+
+Launch the upgrade:  
+`talosctl upgrade --nodes $TALOSIP -e $TALOSIP --image ghcr.io/siderolabs/installer:v1.12.0`
