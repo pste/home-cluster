@@ -1,8 +1,38 @@
-# Ingress NGINX
+# Ingress Controller
+
+## Cleanup from ingress-nginx
+Delete the namespace as a whole  
+`kubectl delete all  --all -n ingress-nginx`  
+
+Check and delete ingressClass  
+`kubectl delete ingressClass nginx`  
+You can fetch all ingressClass using  
+`kubectl get ingressClass -A`  
+
+Check and delete validating webhook  
+`kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission`  
+You can fetch all the validating webhooks using  
+`kubectl get ValidatingWebhookConfiguration`  
+
+## Install Traefik ingress controller
+`https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-crd/`
+
+We have two options to setup Traefik: with Helm or "manually": I chose the second way for my home-lab.  
+
+```
+# Install Traefik Resource Definitions:
+kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.6/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+
+# Install RBAC for Traefik:
+kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.6/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
+```
+
+## DEPRECATED 20251223 (March 2026 nginx-ingress-controller will be dismissed)
+## Ingress NGINX
 
 This is the community mantained NGINX ingress-controller (*not* the NGINX one called nginx-ingress-controller)
 https://github.com/kubernetes/ingress-nginx
 
-# Install
+## Install
 
 `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.2/deploy/static/provider/cloud/deploy.yaml`
