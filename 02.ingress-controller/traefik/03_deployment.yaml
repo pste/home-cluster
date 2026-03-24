@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: ingress-traefik
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik
+      containers:
+        - name: traefik
+          # Pin this to the same major version used for the CRDs
+          image: traefik:v3.3
+          args:
+            # Enable both standard Ingress and Traefik CRD (IngressRoute) providers
+            - --providers.kubernetesingress=true
+            - --providers.kubernetescrd=true
+            # Entrypoints
+            - --entrypoints.web.address=:80
+            - --entrypoints.websecure.address=:443
+            - --log.level=INFO
+            # Uncomment to enable the dashboard (access via port-forward to :8080)
+            # - --api.dashboard=true
+            # - --api.insecure=true
+          ports:
+            - name: web
+              containerPort: 80
+              protocol: TCP
+            - name: websecure
+              containerPort: 443
+              protocol: TCP
+            - name: traefik
+              containerPort: 8080
+              protocol: TCP
