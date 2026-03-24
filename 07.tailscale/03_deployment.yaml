@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tailscale-subnet-router
+  namespace: tailscale
+  labels:
+    app: tailscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tailscale
+  template:
+    metadata:
+      labels:
+        app: tailscale
+    spec:
+      serviceAccountName: tailscale
+      containers:
+        - name: tailscale
+          # Pin to a specific version — check latest stable at https://hub.docker.com/r/tailscale/tailscale/tags
+          image: tailscale/tailscale:stable
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: tailscale-auth
+                  key: TS_AUTHKEY
+            # Advertise both Pod CIDR and Service CIDR (Talos defaults)
+            # Verify your actual values with:
+            #   kubectl cluster-info dump | grep -E "cluster-cidr|service-cluster-ip-range"
+            - name: TS_ROUTES
+              value: "10.244.0.0/16,10.96.0.0/12"
+            # Persist WireGuard keys and node identity across pod restarts
+            # The pod will save its state into a Secret named "tailscale-state"
+            - name: TS_KUBE_SECRET
+              value: "tailscale-state"
+            # Do not override cluster DNS with Tailscale DNS
+            - name: TS_ACCEPT_DNS
+              value: "false"
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          volumeMounts:
+            - name: dev-tun
+              mountPath: /dev/net/tun
+      volumes:
+        - name: dev-tun
+          hostPath:
+            path: /dev/net/tun
