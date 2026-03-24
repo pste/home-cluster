@@ -102,7 +102,7 @@ If you need to modify further your cluster config, just edit the `talosconfig.ya
 Check actual version:  
 `talosctl version`  
 
-Scale down not system pods. To do this scale every application deployment to 0.  
+Scale down not-system pods. To do this scale every application deployment to 0.  
 This step is needed because this is a mono-node cluster.
 
 Launch the upgrade:  
