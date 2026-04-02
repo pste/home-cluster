@@ -1,8 +1,11 @@
 # Ingress Controller
 
 ## Cleanup from ingress-nginx
-Delete the namespace as a whole  
-`kubectl delete all  --all -n ingress-nginx`  
+Delete all resources inside the namespace  
+`kubectl delete all --all -n ingress-nginx`  
+
+Delete the namespace itself  
+`kubectl delete namespace ingress-nginx`  
 
 Check and delete ingressClass  
 `kubectl delete ingressClass nginx`  
@@ -67,4 +70,5 @@ https://github.com/kubernetes/ingress-nginx
 
 ## Install
 
+This will install the whole thing
 `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.2/deploy/static/provider/cloud/deploy.yaml`
