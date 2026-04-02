@@ -1,22 +1,5 @@
 # Ingress Controller
 
-## Cleanup from ingress-nginx
-Delete all resources inside the namespace  
-`kubectl delete all --all -n ingress-nginx`  
-
-Delete the namespace itself  
-`kubectl delete namespace ingress-nginx`  
-
-Check and delete ingressClass  
-`kubectl delete ingressClass nginx`  
-You can fetch all ingressClass using  
-`kubectl get ingressClass -A`  
-
-Check and delete validating webhook  
-`kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission`  
-You can fetch all the validating webhooks using  
-`kubectl get ValidatingWebhookConfiguration`  
-
 ## Install Traefik ingress controller
 `https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-crd/`
 
@@ -72,3 +55,20 @@ https://github.com/kubernetes/ingress-nginx
 
 This will install the whole thing
 `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.2/deploy/static/provider/cloud/deploy.yaml`
+
+## Cleanup from ingress-nginx
+Delete all resources inside the namespace  
+`kubectl delete all --all -n ingress-nginx`  
+
+Delete the namespace itself  
+`kubectl delete namespace ingress-nginx`  
+
+Check and delete ingressClass  
+`kubectl delete ingressClass nginx`  
+You can fetch all ingressClass using  
+`kubectl get ingressClass -A`  
+
+Check and delete validating webhook  
+`kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission`  
+You can fetch all the validating webhooks using  
+`kubectl get ValidatingWebhookConfiguration`  
