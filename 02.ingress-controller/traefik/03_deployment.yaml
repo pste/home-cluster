@@ -28,6 +28,7 @@ spec:
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
             - --log.level=INFO
+            - --accesslog=true
             # Uncomment to enable the dashboard (access via port-forward to :8080)
             # - --api.dashboard=true
             # - --api.insecure=true
