@@ -1,34 +1,52 @@
-# Setup MetalLB
+# MetalLB
 
-References:  
+References:
 - https://blog.dalydays.com/post/kubernetes-homelab-series-part-3-loadbalancer-with-metallb/
 
-# Step 1: install MetalLB
+Bare-metal load balancer for Kubernetes. Assigns real IPs from the local network to `LoadBalancer` services via L2 (ARP) advertisement.
 
-`kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml`
+## Description
 
-# Step 2: reserve some IPs
+This setup installs MetalLB using the official manifest pinned at `v0.14.9` and saved into `01_metallb.yaml`.
 
-I've kept the range 192.168.x.bbb - 192.168.x.ccc on my FritxBox off my DHCP.
+An `IPAddressPool` defines the IP range reserved outside the router's DHCP range, and an `L2Advertisement` announces those IPs via ARP.
 
-# Step 3: associate your IPs into the cluster
+## Setup
 
-Note: choose an IP range OUTSIDE your DHCP configuration.
-`kubectl apply -f ./2_ipaddresspool.yaml`
+### Step 1: reserve IPs on the router
 
-# Step 4: advertise your IPs
+On the FritzBox, exclude a range from the DHCP pool and reserve it for the cluster.  
+The range is configured in `02_ipaddresspool.yaml`.
 
-`kubectl apply -f ./3_advertise.yaml`
+### Step 2: apply all resources via kustomize
 
-# Check Proxy
-
-(strictArp has to be verified if needed...not present in my new setup)
-We're using ARP to announce so, to enable strict ARP mode, we edit kube-system/kube-proxy daemonset and add:
-`spec: container: commands: --ipvs-strict-arp`
-
-In some system (not mine) this can be done editing this configMap:
-`kubectl edit configmap -n kube-system kube-proxy`
+```bash
+kubectl apply -k ./metallb
 ```
-(..)
+
+This applies in order: MetalLB install, IPAddressPool, L2Advertisement.
+
+### Step 3: verify
+
+```bash
+kubectl get ipaddresspool -n metallb-system
+kubectl get l2advertisement -n metallb-system
+```
+
+## Notes
+
+### IP range
+The pool uses `192.168.178.bbb-192.168.178.ccc` — update `02_ipaddresspool.yaml` with the actual values for your network.  
+The range must be **outside** the DHCP range configured on the router.
+
+### strictARP
+Not required on this setup (Talos + standard kube-proxy). If needed on other systems, enable it in the kube-proxy ConfigMap:
+
+```bash
+kubectl edit configmap -n kube-system kube-proxy
+```
+
+```yaml
+ipvs:
   strictARP: true
 ```

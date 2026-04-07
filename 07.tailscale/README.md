@@ -28,7 +28,7 @@ kubectl create secret generic tailscale-auth \
 ### Step 3: apply all resources via kustomize
 
 ```bash
-kubectl apply -k ./
+kubectl apply -k ./tailscale
 ```
 
 This applies in order: Namespace, RBAC (ServiceAccount + Role + RoleBinding), Deployment.

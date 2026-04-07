@@ -5,19 +5,26 @@ It is time to add a custom application, locally developed.
 
 # The docker image
 
-I have three ideas on how-to send my custom image on the cluster:
-- I'll build locally then the image will be sent on DockerHub (internet hosted) [docs](https://docs.docker.com/get-started/introduction/build-and-push-first-image/)
-  PRO: easy to implement
-  CONS: not applicable on WSL2 native, I don't like the idea to build the image on the folder I'm working (what if I have a COPY . . command ?)
-- I'll build locally then I'll push the image on the node to a local Registry [docs](https://medium.com/@lumontec/running-container-registries-inside-k8s-6564aed42b3a)
-  PRO: easy to implement
-  CONS: not applicable on WSL2 native, I don't like the idea to build the image on the folder I'm working (what if I have a COPY . . command ?), requires a new Registry Pod
-- I'll build the image on the node with a CICD (Jenkins ?) Pod, pulling the code from GitHub
-  PRO: not so hard to implement
-  CONS: require some tool (img, kaniko, dind, ..)
+Development happens on WSL2, which means building images locally and pushing directly to the cluster is not a viable option.
 
-~~Actually I'm tempted on the DockerHub solution because my code is already public on GitHub and I can use my local resources for other ...~~  
-I'm investigating the "CICD" solution, using a Job (Pod) to launch on demand as a builder/publisher. Actually I've a batch file that does the stuff.
+## Chosen approach: GitHub Actions → DockerHub → ArgoCD
+
+1. Code is pushed to GitHub
+2. A GitHub Actions workflow builds the Docker image and pushes it to DockerHub
+3. ArgoCD detects the new image tag and deploys it to the cluster
+
+This keeps the build pipeline outside the cluster and off the local machine, with DockerHub as the registry. See the app repository for the GitHub Actions workflow definition.
+
+## Alternative approaches considered
+
+**Local build → DockerHub** ([docs](https://docs.docker.com/get-started/introduction/build-and-push-first-image/))  
+Build the image manually on the dev machine and push to DockerHub. Simple but not usable from WSL2 natively, and building in the working directory is risky if the Dockerfile has a `COPY . .` instruction.
+
+**Local build → in-cluster Registry** ([docs](https://medium.com/@lumontec/running-container-registries-inside-k8s-6564aed42b3a))  
+Run a registry Pod inside the cluster and push images directly to it. Keeps images local to the network but has the same WSL2 build limitations, plus requires maintaining a registry Pod.
+
+**In-cluster build (Kaniko / Jenkins)**  
+A Pod inside the cluster pulls the source from GitHub and builds the image without needing a Docker daemon. Tools like [Kaniko](https://github.com/GoogleContainerTools/kaniko) (daemonless, runs as a Job) or Jenkins work well for this. More infrastructure to maintain but fully self-hosted and independent from external CI.
 
 # Your DB migrations
 

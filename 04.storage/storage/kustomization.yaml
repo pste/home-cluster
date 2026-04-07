@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 01_rbac-csi-smb.yaml
+  - 02_csi-smb-driver.yaml
+  - 03_csi-smb-controller.yaml
+  - 04_csi-smb-node.yaml
+  - 05_storageclass-smb.yaml
