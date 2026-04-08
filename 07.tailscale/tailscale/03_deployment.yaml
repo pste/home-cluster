@@ -38,13 +38,17 @@ spec:
             # Do not override cluster DNS with Tailscale DNS
             - name: TS_ACCEPT_DNS
               value: "false"
+            - name: TS_USERSPACE
+              value: "true"
+            - name: TS_HOSTNAME
+              value: "home-cluster"
           securityContext:
-            capabilities:
-              add: ["NET_ADMIN", "SYS_MODULE"]
+            privileged: true
           volumeMounts:
-            - name: dev-tun
+            - name: tun
               mountPath: /dev/net/tun
       volumes:
-        - name: dev-tun
+        - name: tun
           hostPath:
             path: /dev/net/tun
+            type: CharDevice
