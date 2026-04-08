@@ -27,11 +27,25 @@ spec:
             # Entrypoints
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
+            # Enable TLS termination on the websecure entrypoint (required for Ingress TLS to work)
+            - --entrypoints.websecure.http.tls=true
             - --log.level=INFO
             - --accesslog=true
             # Uncomment to enable the dashboard (access via port-forward to :8080)
             # - --api.dashboard=true
             # - --api.insecure=true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - NET_BIND_SERVICE
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - name: web
               containerPort: 80
