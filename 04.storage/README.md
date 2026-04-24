@@ -56,14 +56,19 @@ parameters:
   source: "//192.168.178.x/sharename"   # replace with your NAS/server address
 ```
 
-`06_storageclass-nas-ro.yaml` and `07_storageclass-nas-rw.yaml` use `envsubst` for the NAS address — no manual edit needed (see Step 3).
+`07_storageclass-nas-rw.yaml` uses `envsubst` for the NAS address — no manual edit needed (see Step 3).
+
+> **Note:** read-only NAS shares (`nas-ro`) require **static provisioning** (PV + PVC).
+> Dynamic provisioning does not work with RO shares because the SMB CSI driver needs
+> to create a subdirectory inside the share at provision time, which requires write access.
+> See `sample-pod-mount.yaml` for the static provisioning pattern.
 
 ### Step 3: apply all resources via kustomize
 
-The NAS StorageClasses use environment variables substituted at apply time via `envsubst`. Export the variables before applying:
+`07_storageclass-nas-rw.yaml` uses environment variables substituted at apply time via `envsubst`. Export the variables before applying:
 
 ```bash
-source .env
+set -a; source ../.env; set +a
 kustomize build ./storage | envsubst | kubectl apply -f -
 ```
 
@@ -72,8 +77,17 @@ kustomize build ./storage | envsubst | kubectl apply -f -
 ```bash
 kubectl -n kube-system get pod -o wide -l app=csi-smb-controller
 kubectl -n kube-system get pod -o wide -l app=csi-smb-node
-kubectl get storageclass smb nas-ro nas-rw
+kubectl get storageclass smb nas-rw
 ```
+
+### Step 5: Notes
+
+Our PV are in 'Retain' mode: if PVC is deleted, the PV remains to be bound again or to be manually deleted.  
+If you need to bound again a PV, maybe after deleting it s PVC, you need to manually patch if this way:  
+```bash
+kubectl patch pv pv-nas-ro --type=json -p='[{"op":"remove","path":"/spec/claimRef"}]'
+```
+This command will release the claimRef and allows a rebind. 
 
 ---
 

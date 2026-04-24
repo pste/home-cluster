@@ -1,0 +1,74 @@
+---
+# Example: how to mount a NAS share on a Pod
+# This file is NOT included in kustomization.yaml
+#
+# IMPORTANT: dynamic provisioning (PVC only) does NOT work with read-only shares.
+# The SMB CSI driver needs to create a subdirectory at provision time, which
+# requires write access. Use static provisioning (PV + PVC) for nas-ro.
+# nas-rw supports both static and dynamic provisioning.
+
+# --- Static provisioning (required for nas-ro, works for nas-rw too) ----------
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nas-ro
+spec:
+  capacity:
+    storage: 256Gi   # nominal, SMB does not enforce quotas
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""   # empty: bypasses the provisioner, binds only to matching PVC
+  mountOptions:
+    - ro
+    - dir_mode=0555
+    - file_mode=0444
+    - uid=1001
+    - gid=1001
+    - noperm
+    - mfsymlinks
+    - cache=strict
+    - noserverino
+  csi:
+    driver: smb.csi.k8s.io
+    readOnly: true
+    volumeHandle: nas-ro   # must be unique per share in the cluster
+    volumeAttributes:
+      source: "//192.168.1.2/Folder"   # replace with actual NAS IP and share
+    nodeStageSecretRef:
+      name: nascreds-ro
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-nas-ro
+  namespace: default
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 256Gi
+  volumeName: pv-nas-ro   # binds explicitly to the PV above
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sample-pod
+  namespace: default
+spec:
+  containers:
+    - name: sample-container
+      image: alpine
+      volumeMounts:
+        - name: mydata
+          mountPath: /app/data
+          readOnly: true
+  volumes:
+    - name: mydata
+      persistentVolumeClaim:
+        claimName: pvc-nas-ro
+        readOnly: true
