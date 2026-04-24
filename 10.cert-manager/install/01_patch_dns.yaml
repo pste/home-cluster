@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  template:
+    spec:
+      containers:
+        - name: cert-manager-controller
+          args:
+            - --v=2
+            - --cluster-resource-namespace=$(POD_NAMESPACE)
+            - --leader-election-namespace=kube-system
+            # Use public nameservers for DNS-01 propagation checks instead of CoreDNS.
+            # Required when CoreDNS has custom zones (e.g. nestix.dev) that return SERVFAIL
+            # for SOA queries, which blocks cert-manager's propagation verification.
+            - --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53
+            - --dns01-recursive-nameservers-only

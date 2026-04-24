@@ -8,23 +8,26 @@ This setup installs ArgoCD using the official manifest pinned at `stable` and sa
 
 ### Install: apply all resources via kustomize
 
-The ArgoCD manifest contains large CRDs that exceed the annotation size limit of `kubectl apply`. Use server-side apply:
+The ArgoCD manifest contains large CRDs that exceed the annotation size limit of `kubectl apply`. Use server-side apply.  
+The ingress uses `${DOMAIN}` — substitute it via `envsubst` before applying:
 
 ```bash
-kubectl apply --server-side -k ./argocd
+source .env
+kustomize build ./argocd | envsubst | kubectl apply --server-side -f -
 ```
 
 On subsequent updates, add `--force-conflicts` to handle field manager conflicts:
 
 ```bash
-kubectl apply --server-side --force-conflicts -k ./argocd
+source .env
+kustomize build ./argocd | envsubst | kubectl apply --server-side --force-conflicts -f -
 ```
 
 ## Accessing the UI
 
 ### Ingress (production approach)
 
-ArgoCD is exposed via Traefik ingress at `https://argocd.nestix.dev`.  
+ArgoCD is exposed via Traefik ingress at `https://argocd.$DOMAIN`.  
 TLS is managed by cert-manager (see the dedicated setup).
 
 Since TLS termination is handled by Traefik, the server runs in insecure mode (plain HTTP internally). This is configured declaratively via a Kustomize patch on `argocd-cmd-params-cm` (`server.insecure: "true"`), so no manual intervention is needed.

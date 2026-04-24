@@ -78,7 +78,12 @@ The dashboard says (after a while):
 ## kubectl
 
 Generate the kubeconfig file:  
-`talosctl -e $TALOSIP -n $TALOSIP kubeconfig ./kubeconfig`
+`talosctl -e $TALOSIP -n $TALOSIP kubeconfig ./kubeconfig`  
+
+Update talos config file pointing to my default endpoint. This allows you to avoid the `-e` parameter to every command:  
+`talosctl config endpoint $TALOSIP`  
+Same for default node:  
+`talosctl config node $TALOSIP`
 
 # Node up and running
 

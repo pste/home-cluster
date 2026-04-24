@@ -12,7 +12,7 @@ In the Cloudflare dashboard: **My Profile → API Tokens → Create Token**
 
 Use the "Edit zone DNS" template with these settings:
 - **Permissions:** Zone / DNS / Edit
-- **Zone Resources:** Include / Specific zone / `nestix.dev`
+- **Zone Resources:** Include / Specific zone / `$DOMAIN`
 
 ### Step 2: install cert-manager
 
@@ -29,27 +29,23 @@ kubectl rollout status deployment/cert-manager-webhook -n cert-manager
 
 ### Step 3: apply config (Secret + ClusterIssuer)
 
+The ClusterIssuer uses `${LETSENCRYPT_EMAIL}` — substitute it via `envsubst` before applying:
+
 ```bash
-kubectl apply -k ./config
+source .env
+kustomize build ./config | envsubst | kubectl apply -f -
 ```
 
 ### Step 4: store the Cloudflare token as a Secret
 
 ```bash
-CFTOK=MY-TOKEN
+source .env
 kubectl create secret generic cloudflare-api-token \
   --from-literal=api-token=$CFTOK \
   --namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-### Step 5: patch the email in the ClusterIssuers
-
-```bash
-LETSENCRYPT_EMAIL=your@email.com
-kubectl patch clusterissuer letsencrypt --type merge -p "{\"spec\":{\"acme\":{\"email\":\"$LETSENCRYPT_EMAIL\"}}}"
-```
-
-### Step 6: verify
+### Step 5: verify
 
 ```bash
 # Check all cert-manager pods are running
@@ -69,10 +65,10 @@ annotations:
 spec:
   tls:
     - hosts:
-        - myapp.nestix.dev
+        - myapp.$DOMAIN
       secretName: myapp-tls
   rules:
-    - host: myapp.nestix.dev
+    - host: myapp.$DOMAIN
       ...
 ```
 
@@ -83,4 +79,9 @@ No manual registration is required. cert-manager automatically registers an ACME
 ## Notes
 
 - `install/00_cert-manager.yaml` is the official upstream manifest pinned to v1.16.2
+- `install/01_patch_dns.yaml` patches the cert-manager deployment to use public nameservers (Cloudflare + Google) for DNS-01 propagation checks. This is required because CoreDNS has custom zones (e.g. `$DOMAIN`) that return SERVFAIL for SOA queries, which would block cert-manager's propagation verification.
 - The Cloudflare API token is stored as a Secret and referenced by the ClusterIssuer — never commit the real token
+- The `install/` kustomization must be applied with `--server-side --force-conflicts` after the first install to avoid field manager conflicts on subsequent updates:
+  ```bash
+  kubectl apply --server-side --force-conflicts -k ./install
+  ```

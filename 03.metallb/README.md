@@ -21,7 +21,8 @@ The range is configured in `02_ipaddresspool.yaml`.
 ### Step 2: apply all resources via kustomize
 
 ```bash
-kubectl apply -k ./metallb
+source .env
+kustomize build ./metallb | envsubst | kubectl apply -f -
 ```
 
 This applies in order: MetalLB install, IPAddressPool, L2Advertisement.
@@ -36,7 +37,7 @@ kubectl get l2advertisement -n metallb-system
 ## Notes
 
 ### IP range
-The pool uses `192.168.178.bbb-192.168.178.ccc` — update `02_ipaddresspool.yaml` with the actual values for your network.  
+The pool uses `${METALLB_IP_RANGE}` — set the actual range in `.env` before applying.  
 The range must be **outside** the DHCP range configured on the router.
 
 ### strictARP

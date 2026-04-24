@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: argocd.nestix.dev
+    - host: argocd.${DOMAIN}
       http:
         paths:
           - path: /
@@ -20,5 +20,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - argocd.nestix.dev
+        - argocd.${DOMAIN}
       secretName: argocd-nestix-dev-tls
