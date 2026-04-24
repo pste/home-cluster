@@ -4,11 +4,11 @@ metadata:
   name: argocd-ingress
   namespace: argocd
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt
 spec:
+  ingressClassName: traefik
   rules:
-    - host: argocd.saba.net
+    - host: argocd.nestix.dev
       http:
         paths:
           - path: /
@@ -20,5 +20,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - argocd.saba.net
-      secretName: argocd-tls  # secret con il certificato
+        - argocd.nestix.dev
+      secretName: argocd-nestix-dev-tls
