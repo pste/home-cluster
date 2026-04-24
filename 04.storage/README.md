@@ -15,7 +15,7 @@ The StorageClass is from:
 kubectl create -f https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/master/deploy/example/storageclass-smb.yaml
 ```
 
-### Step 1: create the SMB credentials secret
+### Step 1a: create the SMB credentials secret
 
 The secret must be created manually (not tracked in git):
 
@@ -23,7 +23,28 @@ The secret must be created manually (not tracked in git):
 kubectl create secret generic smbcreds \
   --from-literal=username=<your-username> \
   --from-literal=password=<your-password> \
-  --namespace default
+  --namespace default \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### Step 1b: create the NAS credentials secrets (read-only and read-write)
+
+Two separate secrets must be created manually (not tracked in git), one per access level:
+
+```bash
+# Read-only user
+kubectl create secret generic nascreds-ro \
+  --from-literal=username=<nas-ro-username> \
+  --from-literal=password=<nas-ro-password> \
+  --namespace default \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Read-write user
+kubectl create secret generic nascreds-rw \
+  --from-literal=username=<nas-rw-username> \
+  --from-literal=password=<nas-rw-password> \
+  --namespace default \
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ### Step 2: update the StorageClass
@@ -35,10 +56,15 @@ parameters:
   source: "//192.168.178.x/sharename"   # replace with your NAS/server address
 ```
 
+`06_storageclass-nas-ro.yaml` and `07_storageclass-nas-rw.yaml` use `envsubst` for the NAS address — no manual edit needed (see Step 3).
+
 ### Step 3: apply all resources via kustomize
 
+The NAS StorageClasses use environment variables substituted at apply time via `envsubst`. Export the variables before applying:
+
 ```bash
-kubectl apply -k ./storage
+source .env
+kustomize build ./storage | envsubst | kubectl apply -f -
 ```
 
 ### Step 4: verify
@@ -46,7 +72,7 @@ kubectl apply -k ./storage
 ```bash
 kubectl -n kube-system get pod -o wide -l app=csi-smb-controller
 kubectl -n kube-system get pod -o wide -l app=csi-smb-node
-kubectl get storageclass smb
+kubectl get storageclass smb nas-ro nas-rw
 ```
 
 ---

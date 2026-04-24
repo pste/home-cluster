@@ -7,3 +7,5 @@ resources:
   - 03_csi-smb-controller.yaml
   - 04_csi-smb-node.yaml
   - 05_storageclass-smb.yaml
+  - 06_storageclass-nas-ro.yaml
+  - 07_storageclass-nas-rw.yaml
