@@ -112,3 +112,47 @@ This step is needed because this is a mono-node cluster.
 
 Launch the upgrade:  
 `talosctl upgrade --nodes $TALOSIP -e $TALOSIP --image ghcr.io/siderolabs/installer:v1.12.0`
+
+## Client certificate expired
+Check if expired:
+```bash
+talosctl config info
+# (or)
+cat talosconfig | grep crt | awk '{print $2}' | base64 -d | openssl x509 -noout -dates
+```
+
+Copy the `controlplane.yaml` file in a **new** folder, then `cd` into it to:
+```bash
+talosctl gen secrets --from-controlplane-config controlplane.yaml -o secrets.yaml
+```
+
+Now grep the clustername from my config:
+```bash
+grep clusterName controlplane.yaml 
+```
+and use the name (in my case `k8ste`) to generate a new config (BEWARE: this rewrite your files in this folder):
+```bash
+talosctl gen config --with-secrets secrets.yaml k8ste https://$TALOSIP:6443 --force
+```
+
+Finally configure the node:
+```bash
+talosctl --talosconfig talosconfig config endpoint $TALOSIP
+talosctl --talosconfig talosconfig config node $TALOSIP
+```
+
+Now everything should work:
+```bash
+talosctl -n $TALOSIP version
+```
+
+### kubectl expired
+Verify kubectl expiration date:  
+```bash
+kubectl config view --raw -o jsonpath='{.users[0].user.client-certificate-data}' | base64 -d | openssl x509 -noout -dates
+```
+
+If expired, generatea new one config:
+```bash
+talosctl -n $TALOSIP kubeconfig --force
+```
