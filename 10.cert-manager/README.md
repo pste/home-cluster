@@ -29,23 +29,14 @@ kubectl rollout status deployment/cert-manager-webhook -n cert-manager
 
 ### Step 3: apply config (Secret + ClusterIssuer)
 
-The ClusterIssuer uses `${LETSENCRYPT_EMAIL}` — substitute it via `envsubst` before applying:
+The Secret uses `${CFTOK}` (the token from Step 1) and the ClusterIssuer uses `${LETSENCRYPT_EMAIL}` — both substituted via `envsubst`, so make sure they are set in `.env` before applying:
 
 ```bash
 set -a; source ../.env; set +a
 kubectl kustomize ./config | envsubst | kubectl apply -f -
 ```
 
-### Step 4: store the Cloudflare token as a Secret
-
-```bash
-set -a; source ../.env; set +a
-kubectl create secret generic cloudflare-api-token \
-  --from-literal=api-token=$CFTOK \
-  --namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
-```
-
-### Step 5: verify
+### Step 4: verify
 
 ```bash
 # Check all cert-manager pods are running

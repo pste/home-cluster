@@ -6,7 +6,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pihole.${LOCAL_DOMAIN}
+    - host: pihole.${DOMAIN}
       http:
         paths:
           - path: /

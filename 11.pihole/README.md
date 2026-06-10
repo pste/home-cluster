@@ -5,10 +5,10 @@ Network-wide ad blocking DNS server, exposed on the LAN through a MetalLB `LoadB
 ## What is deployed
 
 - Namespace `pihole`
-- Secret with the web UI password (placeholder, replace after apply)
+- Secret with the web UI password (value from `PIHOLE_WEBPASSWORD` in `.env`)
 - Deployment running `pihole/pihole` (v6, configured via `FTLCONF_*` env vars)
 - Service of type `LoadBalancer` with a fixed IP (`${PIHOLE_IP}`) for DNS on port 53 (TCP+UDP)
-- Ingress `pihole.${LOCAL_DOMAIN}` for the admin web UI through Traefik
+- Ingress `pihole.${DOMAIN}` for the admin web UI through Traefik
 
 ## Required env
 
@@ -17,6 +17,8 @@ Add to `.env`:
 ```bash
 # Fixed LAN IP for the Pi-hole DNS service — must be inside the MetalLB pool (METALLB_IP_RANGE)
 PIHOLE_IP=192.168.x.x
+# Admin web UI password
+PIHOLE_WEBPASSWORD=your-password
 ```
 
 ## Apply
@@ -27,12 +29,9 @@ set -a; source ../.env; set +a
 kubectl kustomize ./pihole | envsubst | kubectl apply -f -
 ```
 
-Then set the real web password:
+The Secret gets its value from `PIHOLE_WEBPASSWORD` — make sure it is set in `.env` before applying, or the password will be empty. After changing the password, restart the Pod to pick it up:
 
 ```bash
-kubectl create secret generic pihole-webpassword \
-  --from-literal=WEBPASSWORD=your-password \
-  --namespace pihole --dry-run=client -o yaml | kubectl apply -f -
 kubectl rollout restart deployment/pihole -n pihole
 ```
 
@@ -40,7 +39,7 @@ kubectl rollout restart deployment/pihole -n pihole
 
 Point your clients (or the router's DHCP DNS option) to `$PIHOLE_IP`.
 
-Admin UI: `http://pihole.$LOCAL_DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik).
+Admin UI: `http://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik).
 
 ## Verify
 

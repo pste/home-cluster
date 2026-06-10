@@ -17,26 +17,21 @@ Login on the Tailscale admin console and generate an Auth Key.
 
 ### Step 2: apply all resources via kustomize
 
-```bash
-kubectl apply -k ./tailscale
-```
-
-This applies in order: Namespace, RBAC (ServiceAccount + Role + RoleBinding), Deployment, Secret (placeholder `TS_AUTHKEY=helloworld`).
-
-### Step 3: update the auth secret with the real key
+The auth Secret gets its value from `TS_AUTHKEY` — set it in `.env` before applying:
 
 ```bash
-kubectl create secret generic tailscale-auth \
-  --from-literal=TS_AUTHKEY=tskey-auth-XXXXXXXXX \
-  --namespace tailscale --dry-run=client -o yaml | kubectl apply -f -
+set -a; source ../.env; set +a
+kubectl kustomize ./tailscale | envsubst | kubectl apply -f -
 ```
 
-### Step 4: approve the advertised routes
+This applies in order: Namespace, RBAC (ServiceAccount + Role + RoleBinding), Deployment, Secret (`TS_AUTHKEY` from `.env`).
+
+### Step 3: approve the advertised routes
 
 After the pod starts, the subnet routes are in **pending** state until approved manually.
 Go to the Tailscale admin console → Machines → find your node → Edit route settings → enable the advertised routes.
 
-### Step 5: enable routes on the client
+### Step 4: enable routes on the client
 
 On each Tailscale client that needs to reach the cluster, run:
 
@@ -46,7 +41,7 @@ tailscale up --accept-routes
 
 Without this, the client ignores the advertised routes and traffic never reaches the subnet router.
 
-### Step 6: verify
+### Step 5: verify
 
 ```bash
 # Check the pod is running

@@ -10,12 +10,10 @@ The base Corefile was retrieved with:
 kubectl get configmap coredns -n kube-system -o yaml
 ```
 
-A block per domain is added before the default `.` block.
+A block for `${DOMAIN}` is added before the default `.` block.
 The `template` plugin resolves any hostname under that domain to Traefik's ClusterIP (`${TRAEFIK_IP}`), without needing a DNS entry per app.
 
-Domains currently configured:
-- `${LOCAL_DOMAIN}` — private/internal domain, set in `.env`
-- `${DOMAIN}` — public domain on Cloudflare, resolved internally via split DNS (see below)
+`${DOMAIN}` is the public domain on Cloudflare, resolved internally via split DNS (see below).
 
 ## Apply
 
@@ -29,23 +27,23 @@ CoreDNS has the `reload` plugin enabled — it picks up ConfigMap changes automa
 ## Verify
 
 ```bash
-kubectl run dns-test --rm -it --restart=Never --image=busybox -- nslookup qualcosa.$LOCAL_DOMAIN 10.96.0.10
+kubectl run dns-test --rm -it --restart=Never --image=busybox -- nslookup qualcosa.$DOMAIN 10.96.0.10
 ```
 
 ## Tailscale split DNS
 
-For each domain, configure a restricted nameserver in the Tailscale admin console:
+Configure a restricted nameserver in the Tailscale admin console:
 
 **Admin Console → DNS → Add nameserver**
 - Nameserver IP: `10.96.0.10` (CoreDNS ClusterIP)
-- Restrict to domain: `$LOCAL_DOMAIN` (repeat for each domain)
+- Restrict to domain: `$DOMAIN`
 
 The client routes DNS queries for that domain through CoreDNS, which returns Traefik's ClusterIP, reachable via the Tailscale subnet router.
 
 ### Verify from a Tailscale client
 
 ```bash
-nslookup anything.$LOCAL_DOMAIN
+nslookup anything.$DOMAIN
 # expected: Address: $TRAEFIK_IP
 ```
 
