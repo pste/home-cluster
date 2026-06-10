@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pihole
+  namespace: pihole
+  labels:
+    app: pihole
+spec:
+  replicas: 1
+  # Recreate avoids two instances writing the same gravity DB during a rollout
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pihole
+  template:
+    metadata:
+      labels:
+        app: pihole
+    spec:
+      containers:
+        - name: pihole
+          # Pin to a specific version — check latest stable at https://hub.docker.com/r/pihole/pihole/tags
+          image: pihole/pihole:2025.08.0
+          env:
+            - name: TZ
+              value: "Europe/Rome"
+            # Pi-hole v6 configuration via FTLCONF_* env vars
+            - name: FTLCONF_webserver_api_password
+              valueFrom:
+                secretKeyRef:
+                  name: pihole-webpassword
+                  key: WEBPASSWORD
+            # Listen on all interfaces — required inside a Pod, traffic arrives via the Service
+            - name: FTLCONF_dns_listeningMode
+              value: "all"
+            - name: FTLCONF_dns_upstreams
+              value: "1.1.1.1;8.8.8.8"
+          ports:
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: web
+              containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /admin/
+              port: web
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: dns-tcp
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: pihole-data
+              mountPath: /etc/pihole
+      volumes:
+        # emptyDir: settings and blocklists are lost on Pod restart (gravity re-downloads them).
+        # Replace with a PVC if you want persistence — note that SQLite on SMB shares is unreliable.
+        - name: pihole-data
+          emptyDir: {}
