@@ -39,7 +39,7 @@ kubectl rollout restart deployment/pihole -n pihole
 
 Point your clients (or the router's DHCP DNS option) to `$PIHOLE_IP`.
 
-Admin UI: `http://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik).
+Admin UI: `https://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik, certificate issued by cert-manager via the `letsencrypt` ClusterIssuer).
 
 ## Local resolution of ${DOMAIN}
 
