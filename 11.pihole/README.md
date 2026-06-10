@@ -37,7 +37,16 @@ kubectl rollout restart deployment/pihole -n pihole
 
 ## Use it
 
-Point your clients (or the router's DHCP DNS option) to `$PIHOLE_IP`.
+The FRITZ!Box acts as DNS intermediary: clients keep using the router, which forwards to Pi-hole with a public fallback (redundancy if the Pod is down — accepted trade-off: some queries may hit the fallback and skip blocking, and Pi-hole sees all queries as coming from the router, so no per-client stats).
+
+FRITZ!Box configuration:
+
+1. **Internet → Account Information → DNS Server → "Use other DNSv4 servers"**
+   - Preferred: `$PIHOLE_IP`
+   - Alternative: `1.1.1.1`
+2. **Home Network → Network → Network Settings → "DNS Rebind Protection"**: add `$DOMAIN` to the exceptions — the FRITZ!Box blocks DNS answers pointing to private IPs (like the `*.$DOMAIN` wildcard → Traefik) unless the domain is whitelisted here.
+
+No DHCP lease renewal needed: clients already point at the router. Because the whole LAN reaches Pi-hole from the router's single IP, FTL's per-client rate limit is disabled in the Deployment (`FTLCONF_dns_rateLimit_count=0`).
 
 Admin UI: `https://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik, certificate issued by cert-manager via the `letsencrypt` ClusterIssuer).
 

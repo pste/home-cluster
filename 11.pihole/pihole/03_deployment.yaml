@@ -43,6 +43,11 @@ spec:
             # on an extra line.
             - name: FTLCONF_misc_dnsmasq_lines
               value: "address=/${DOMAIN}/${TRAEFIK_IP}"
+            # The FRITZ!Box forwards the whole LAN's queries from its single IP,
+            # which would trip FTL's per-client rate limit (1000 queries/min).
+            # 0 disables rate limiting.
+            - name: FTLCONF_dns_rateLimit_count
+              value: "0"
           ports:
             - name: dns-tcp
               containerPort: 53
