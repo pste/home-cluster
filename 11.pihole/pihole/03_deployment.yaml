@@ -36,6 +36,13 @@ spec:
               value: "all"
             - name: FTLCONF_dns_upstreams
               value: "1.1.1.1;8.8.8.8"
+            # Wildcard: any name under DOMAIN resolves to Traefik, same logic as
+            # the CoreDNS template for Tailscale clients. Declared here (not via
+            # UI records) so it is versioned and survives Pod restarts (emptyDir).
+            # More-specific overrides win, e.g. "address=/nas.${DOMAIN}/<NAS_IP>"
+            # on an extra line.
+            - name: FTLCONF_misc_dnsmasq_lines
+              value: "address=/${DOMAIN}/${TRAEFIK_IP}"
           ports:
             - name: dns-tcp
               containerPort: 53

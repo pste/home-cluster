@@ -6,7 +6,7 @@ Network-wide ad blocking DNS server, exposed on the LAN through a MetalLB `LoadB
 
 - Namespace `pihole`
 - Secret with the web UI password (value from `PIHOLE_WEBPASSWORD` in `.env`)
-- Deployment running `pihole/pihole` (v6, configured via `FTLCONF_*` env vars)
+- Deployment running `pihole/pihole` (v6, configured via `FTLCONF_*` env vars), with a dnsmasq wildcard resolving `*.${DOMAIN}` to Traefik for LAN clients
 - Service of type `LoadBalancer` with a fixed IP (`${PIHOLE_IP}`) for DNS on port 53 (TCP+UDP)
 - Ingress `pihole.${DOMAIN}` for the admin web UI through Traefik
 
@@ -41,6 +41,15 @@ Point your clients (or the router's DHCP DNS option) to `$PIHOLE_IP`.
 
 Admin UI: `http://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik).
 
+## Local resolution of ${DOMAIN}
+
+The Deployment sets a dnsmasq wildcard (`FTLCONF_misc_dnsmasq_lines = address=/${DOMAIN}/${TRAEFIK_IP}`): any name under `${DOMAIN}` resolves to Traefik's IP for LAN clients — same logic as the CoreDNS template used by Tailscale clients. New apps only need an Ingress, no DNS entry.
+
+Notes:
+- No NXDOMAIN: non-existent names under `${DOMAIN}` also resolve to Traefik (you get its 404).
+- To point a specific name elsewhere, add a more specific line (they stack with `;` separators), e.g. `address=/nas.${DOMAIN}/<NAS_IP>` — more specific wins.
+- Don't add Local DNS Records from the UI: with `emptyDir` storage they vanish on Pod restart. Keep DNS config in the Deployment.
+
 ## Verify
 
 ```bash
@@ -49,6 +58,9 @@ nslookup google.com $PIHOLE_IP
 
 # A known ad domain should be blocked (returns 0.0.0.0)
 nslookup doubleclick.net $PIHOLE_IP
+
+# Wildcard: any name under DOMAIN must resolve to Traefik's IP
+nslookup whatever.$DOMAIN $PIHOLE_IP
 ```
 
 ## Notes
