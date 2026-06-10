@@ -12,15 +12,15 @@ The ArgoCD manifest contains large CRDs that exceed the annotation size limit of
 The ingress uses `${DOMAIN}` — substitute it via `envsubst` before applying:
 
 ```bash
-source .env
-kustomize build ./argocd | envsubst | kubectl apply --server-side -f -
+set -a; source ../.env; set +a
+kubectl kustomize ./argocd | envsubst | kubectl apply --server-side -f -
 ```
 
 On subsequent updates, add `--force-conflicts` to handle field manager conflicts:
 
 ```bash
-source .env
-kustomize build ./argocd | envsubst | kubectl apply --server-side --force-conflicts -f -
+set -a; source ../.env; set +a
+kubectl kustomize ./argocd | envsubst | kubectl apply --server-side --force-conflicts -f -
 ```
 
 ## Accessing the UI

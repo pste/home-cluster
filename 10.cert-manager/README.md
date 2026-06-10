@@ -32,14 +32,14 @@ kubectl rollout status deployment/cert-manager-webhook -n cert-manager
 The ClusterIssuer uses `${LETSENCRYPT_EMAIL}` — substitute it via `envsubst` before applying:
 
 ```bash
-source .env
-kustomize build ./config | envsubst | kubectl apply -f -
+set -a; source ../.env; set +a
+kubectl kustomize ./config | envsubst | kubectl apply -f -
 ```
 
 ### Step 4: store the Cloudflare token as a Secret
 
 ```bash
-source .env
+set -a; source ../.env; set +a
 kubectl create secret generic cloudflare-api-token \
   --from-literal=api-token=$CFTOK \
   --namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -

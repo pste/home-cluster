@@ -20,8 +20,8 @@ Domains currently configured:
 ## Apply
 
 ```bash
-source .env
-kustomize build ./coredns | envsubst | kubectl apply -f -
+set -a; source ../.env; set +a
+kubectl kustomize ./coredns | envsubst | kubectl apply -f -
 ```
 
 CoreDNS has the `reload` plugin enabled — it picks up ConfigMap changes automatically within 30 seconds, no restart needed.

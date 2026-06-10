@@ -21,8 +21,8 @@ The range is configured in `02_ipaddresspool.yaml`.
 ### Step 2: apply all resources via kustomize
 
 ```bash
-source .env
-kustomize build ./metallb | envsubst | kubectl apply -f -
+set -a; source ../.env; set +a
+kubectl kustomize ./metallb | envsubst | kubectl apply -f -
 ```
 
 This applies in order: MetalLB install, IPAddressPool, L2Advertisement.

@@ -69,7 +69,7 @@ parameters:
 
 ```bash
 set -a; source ../.env; set +a
-kustomize build ./storage | envsubst | kubectl apply -f -
+kubectl kustomize ./storage | envsubst | kubectl apply -f -
 ```
 
 ### Step 4: verify

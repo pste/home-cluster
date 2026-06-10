@@ -24,14 +24,15 @@ Copy `.env.dist` to `.env`, fill in the values, and source it before running any
 ```bash
 cp .env.dist .env
 # edit .env with your values
-source .env
+# set -a exports everything sourced — required, envsubst only sees exported vars
+set -a; source .env; set +a
 ```
 
 Apply a module with variable substitution:
 
 ```bash
-# single module
-kustomize build ./09.coredns | envsubst | kubectl apply -f -
+# single module (with kustomize)
+kubectl kustomize ./09.coredns | envsubst | kubectl apply -f -
 
 # single file
 envsubst < 03.metallb/metallb/02_ipaddresspool.yaml | kubectl apply -f -
