@@ -71,6 +71,35 @@ Notes:
 - To point a specific name elsewhere, add a more specific line (they stack with `;` separators), e.g. `address=/nas.${DOMAIN}/<NAS_IP>` — more specific wins.
 - Don't add Local DNS Records from the UI: with `emptyDir` storage they vanish on Pod restart. Keep DNS config in the Deployment.
 
+## Ad/malware blocklists — `pihole-adfilter.sh`
+
+`pihole-adfilter.sh` is a **bootstrap script to run after a reinstall or Pod restart**: storage is an `emptyDir`, so `gravity.db` (groups, adlists, associations) is wiped on every restart and must be rebuilt. It keeps two separate groups — `ads` and `malware` — so ads can be toggled off while malware/phishing filtering always stays on.
+
+It operates directly on the SQLite DB (`/etc/pihole/gravity.db`) and calls `pihole -g`, so it must run **inside the Pod**, not on the host. It is idempotent (`INSERT OR IGNORE`), safe to re-run.
+
+```bash
+# 1. Copy the script into the running Pod
+POD=$(kubectl get pod -n pihole -l app=pihole -o jsonpath='{.items[0].metadata.name}')
+kubectl cp ./pihole-adfilter.sh pihole/$POD:/tmp/pihole-adfilter.sh
+
+# 2. Get a shell inside the Pod (it already runs as root)
+kubectl exec -it -n pihole $POD -- bash
+
+# 3. Inside the Pod: make it executable and run the setup
+chmod +x /tmp/pihole-adfilter.sh
+/tmp/pihole-adfilter.sh setup        # creates groups, adds lists, runs pihole -g
+```
+
+Other commands (inside the Pod):
+
+```bash
+/tmp/pihole-adfilter.sh ads off      # disable ads only (malware stays on)
+/tmp/pihole-adfilter.sh ads on       # re-enable ads
+/tmp/pihole-adfilter.sh status       # show group state and list count per category
+```
+
+> No `sudo` is needed inside the Pod — the container already runs as root, so the script's `require_root` check passes. To change which blocklists are used, edit the `ADS_LISTS` / `MALWARE_LISTS` arrays at the top of the script and re-run `setup`.
+
 ## Verify
 
 ```bash
