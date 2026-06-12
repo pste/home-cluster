@@ -8,6 +8,10 @@ metadata:
     metallb.io/loadBalancerIPs: ${PIHOLE_IP}
 spec:
   type: LoadBalancer
+  # Local preserves the real client source IP (no SNAT, no node-to-node hop):
+  # Pi-hole logs show the actual querier instead of the cluster pod-network IP.
+  # Safe with MetalLB L2, which advertises the IP only from a node running a Pod.
+  externalTrafficPolicy: Local
   selector:
     app: pihole
   ports:

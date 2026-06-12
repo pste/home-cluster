@@ -41,8 +41,11 @@ spec:
             # UI records) so it is versioned and survives Pod restarts (emptyDir).
             # More-specific overrides win, e.g. "address=/nas.${DOMAIN}/<NAS_IP>"
             # on an extra line.
+            # TRAEFIK_EXT_IP is Traefik's MetalLB external IP (LAN-routable), NOT
+            # the ClusterIP that CoreDNS uses: LAN clients cannot reach the
+            # cluster Service CIDR, only Tailscale clients (which route it) can.
             - name: FTLCONF_misc_dnsmasq_lines
-              value: "address=/${DOMAIN}/${TRAEFIK_IP}"
+              value: "address=/${DOMAIN}/${TRAEFIK_EXT_IP}"
             # The FRITZ!Box forwards the whole LAN's queries from its single IP,
             # which would trip FTL's per-client rate limit (1000 queries/min).
             # 0 disables rate limiting.

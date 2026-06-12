@@ -19,6 +19,10 @@ Add to `.env`:
 PIHOLE_IP=192.168.x.x
 # Admin web UI password
 PIHOLE_WEBPASSWORD=your-password
+# Traefik's MetalLB external IP (LAN-routable) — the wildcard below points LAN
+# clients here. NOT the ClusterIP used by CoreDNS (TRAEFIK_IP): the LAN cannot
+# reach the cluster Service CIDR.
+TRAEFIK_EXT_IP=192.168.x.x
 ```
 
 ## Apply
@@ -35,24 +39,32 @@ The Secret gets its value from `PIHOLE_WEBPASSWORD` — make sure it is set in `
 kubectl rollout restart deployment/pihole -n pihole
 ```
 
-## Use it
+## Use it — FRITZ!Box setup
 
-The FRITZ!Box acts as DNS intermediary: clients keep using the router, which forwards to Pi-hole with a public fallback (redundancy if the Pod is down — accepted trade-off: some queries may hit the fallback and skip blocking, and Pi-hole sees all queries as coming from the router, so no per-client stats).
+Point the FRITZ!Box **upstream** resolver at Pi-hole — this is the scheme that actually works on this router (config only on the router, nothing changes in the cluster):
 
-FRITZ!Box configuration:
+1. **Internet → Account Information → DNS Server → "Use other DNSv4 servers"**: preferred `$PIHOLE_IP`, alternative empty (or a public DNS as fallback, see note)
+2. No DHCP lease renewal needed — clients already use the router (`192.168.x.1`) as DNS, and it now forwards to Pi-hole.
 
-1. **Internet → Account Information → DNS Server → "Use other DNSv4 servers"**
-   - Preferred: `$PIHOLE_IP`
-   - Alternative: `1.1.1.1`
-2. **Home Network → Network → Network Settings → "DNS Rebind Protection"**: add `$DOMAIN` to the exceptions — the FRITZ!Box blocks DNS answers pointing to private IPs (like the `*.$DOMAIN` wildcard → Traefik) unless the domain is whitelisted here.
+> **Why not the "Local DNS server" field?** On this FRITZ!Box, `Home Network → Network → Network Settings → Local DNS server = $PIHOLE_IP` does **not** redirect client queries to Pi-hole: the router keeps advertising **itself** as the clients' DNS via DHCP, so traffic still goes `client → router → upstream`. Setting that field while leaving the upstream on the ISP makes the dashboard stay empty even though the internet works. The upstream setting above is what counts.
+>
+> Trade-off of this scheme: all queries reach Pi-hole **from the router**, so the dashboard shows a single client (the router IP), not per-device stats. If the alternative DNS is set to a public server, some queries may hit it and skip blocking when Pi-hole is slow/down.
 
-No DHCP lease renewal needed: clients already point at the router. Because the whole LAN reaches Pi-hole from the router's single IP, FTL's per-client rate limit is disabled in the Deployment (`FTLCONF_dns_rateLimit_count=0`).
+**IPv6:** disabled on this router (`Internet → Account Information → IPv6 → IPv6 support off`). The Pi-hole Service is IPv4-only (`ipFamilyPolicy: SingleStack`), so if IPv6 is re-enabled the AAAA queries would bypass Pi-hole unless a DNSv6 upstream is also pointed at it.
+
+Add `$DOMAIN` to the exceptions in **Home Network → Network → Network Settings → "DNS Rebind Protection"**: the FRITZ!Box blocks DNS answers pointing to private IPs (like the `*.$DOMAIN` wildcard → Traefik). Required because Pi-hole resolves `*.$DOMAIN` to Traefik's private IP.
+
+FTL's per-client rate limit is disabled in the Deployment (`FTLCONF_dns_rateLimit_count=0`): the whole LAN arrives from the router's single IP, which would otherwise trip the limit.
+
+The Service uses `externalTrafficPolicy: Local` so Pi-hole logs the **real source IP** instead of the cluster pod-network IP (`10.244.0.1`). With the upstream scheme above that real IP is the router (`192.168.x.1`); it would become the actual device IP only if clients ever query Pi-hole directly. Safe with MetalLB L2, which advertises the Service IP only from a node running the Pod.
 
 Admin UI: `https://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik, certificate issued by cert-manager via the `letsencrypt` ClusterIssuer).
 
 ## Local resolution of ${DOMAIN}
 
-The Deployment sets a dnsmasq wildcard (`FTLCONF_misc_dnsmasq_lines = address=/${DOMAIN}/${TRAEFIK_IP}`): any name under `${DOMAIN}` resolves to Traefik's IP for LAN clients — same logic as the CoreDNS template used by Tailscale clients. New apps only need an Ingress, no DNS entry.
+The Deployment sets a dnsmasq wildcard (`FTLCONF_misc_dnsmasq_lines = address=/${DOMAIN}/${TRAEFIK_EXT_IP}`): any name under `${DOMAIN}` resolves to Traefik's IP for LAN clients — same logic as the CoreDNS template used by Tailscale clients. New apps only need an Ingress, no DNS entry.
+
+> **`TRAEFIK_EXT_IP` vs `TRAEFIK_IP`** — they are different on purpose. LAN clients can only reach Traefik through its **MetalLB external IP** (`TRAEFIK_EXT_IP`, e.g. `192.168.x.220`); the cluster ClusterIP (`TRAEFIK_IP`, e.g. `10.100.x.x`) used by the CoreDNS template is reachable only from inside the cluster and from Tailscale clients (which route the Service CIDR). Pointing the LAN wildcard at the ClusterIP makes `*.${DOMAIN}` resolve to an address the LAN cannot reach.
 
 Notes:
 - No NXDOMAIN: non-existent names under `${DOMAIN}` also resolve to Traefik (you get its 404).
