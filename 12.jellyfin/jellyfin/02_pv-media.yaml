@@ -1,0 +1,55 @@
+---
+# Media library mounted READ-ONLY from the NAS video share.
+#
+# Static provisioning (PV + PVC) is required for read-only SMB shares: dynamic
+# provisioning would need the CSI driver to create a subdirectory at provision
+# time, which a read-only share refuses. Same pattern as
+# 04.storage/storage/sample-pod-mount.yaml.
+#
+# Reuses the `nascreds-ro` secret created in the `default` namespace during the
+# storage setup (04.storage). The PV is cluster-scoped, so the secret can live
+# in another namespace; only the PVC below must sit in the jellyfin namespace.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-jellyfin-media
+spec:
+  capacity:
+    storage: 1Ti   # nominal, SMB does not enforce quotas
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""   # empty: bypasses any provisioner, binds only to the matching PVC
+  mountOptions:
+    - ro
+    - dir_mode=0555
+    - file_mode=0444
+    - uid=1001
+    - gid=1001
+    - noperm
+    - mfsymlinks
+    - cache=strict
+    - noserverino   # required to prevent data corruption
+  csi:
+    driver: smb.csi.k8s.io
+    readOnly: true
+    volumeHandle: jellyfin-media   # must be unique per share in the cluster
+    volumeAttributes:
+      source: "//${NAS_IP}/${NAS_SHARE_VIDEO}"
+    nodeStageSecretRef:
+      name: nascreds-ro
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-jellyfin-media
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 1Ti
+  volumeName: pv-jellyfin-media   # binds explicitly to the PV above

@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: jellyfin
+  labels:
+    app: jellyfin
+spec:
+  replicas: 1
+  # Recreate avoids two instances writing the same SQLite library during a rollout
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      containers:
+        - name: jellyfin
+          # Pin to a specific version — check latest stable at https://hub.docker.com/r/jellyfin/jellyfin/tags
+          image: jellyfin/jellyfin:10.10.7
+          env:
+            - name: TZ
+              value: "Europe/Rome"
+            # External URL advertised by Jellyfin (DLNA, links). Optional but
+            # makes generated absolute URLs correct behind the reverse proxy.
+            - name: JELLYFIN_PublishedServerUrl
+              value: "https://jellyfin.${DOMAIN}"
+          ports:
+            - name: http
+              containerPort: 8096
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            # No CPU limit on purpose: software transcoding is CPU-bound and a
+            # tight limit would stutter playback. Memory limit caps runaway use.
+            limits:
+              memory: "2Gi"
+          volumeMounts:
+            # Config + SQLite library on the local Talos UserVolume (persistent,
+            # SQLite-safe — unlike the SMB shares).
+            - name: config
+              mountPath: /config
+            # Transcoding scratch space — transient, fine to lose on restart.
+            - name: cache
+              mountPath: /cache
+            # Media library, read-only from the NAS.
+            - name: media
+              mountPath: /media/video
+              readOnly: true
+      volumes:
+        # TEMPORARY (testing): config on emptyDir — library/users are LOST on
+        # every Pod restart. Switch back to the Talos UserVolume below for real
+        # use (persistent, SQLite-safe). See README "Prerequisites".
+        - name: config
+          emptyDir: {}
+        # Persistent option: Talos UserVolume "jellyfin-config" → /var/mnt/jellyfin-config
+        # on the node. Provision it in controlplane.yaml at the OS level (see README).
+        # - name: config
+        #   hostPath:
+        #     path: /var/mnt/jellyfin-config
+        #     type: DirectoryOrCreate
+        - name: cache
+          emptyDir: {}
+        - name: media
+          persistentVolumeClaim:
+            claimName: pvc-jellyfin-media
+            readOnly: true
