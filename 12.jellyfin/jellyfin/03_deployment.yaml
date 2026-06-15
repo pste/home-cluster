@@ -21,7 +21,7 @@ spec:
       containers:
         - name: jellyfin
           # Pin to a specific version — check latest stable at https://hub.docker.com/r/jellyfin/jellyfin/tags
-          image: jellyfin/jellyfin:10.10.7
+          image: jellyfin/jellyfin:10.11.11
           env:
             - name: TZ
               value: "Europe/Rome"
