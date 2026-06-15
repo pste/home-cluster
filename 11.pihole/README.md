@@ -73,7 +73,15 @@ Notes:
 
 ## Ad/malware blocklists — `pihole-adfilter.sh`
 
-`pihole-adfilter.sh` is a **bootstrap script to run on first install** (or after wiping the data volume): it builds `gravity.db` (groups, adlists, associations). Storage is now persistent (local Talos disk), so the DB survives Pod restarts and no longer needs rebuilding each time. It keeps two separate groups — `ads` and `malware` — so ads can be toggled off while malware/phishing filtering always stays on.
+`pihole-adfilter.sh` is **only a bootstrap script** to run on first install (or after wiping the data volume): it builds `gravity.db` and the group structure. Storage is now persistent (local Talos disk), so the DB survives Pod restarts and no longer needs rebuilding each time. Day-to-day changes (toggling ads, per-client rules) are done from the Pi-hole UI, not this script.
+
+How filtering works here (important — Pi-hole's group model trips people up): a blocklist only blocks a client if the list is in a **group the client belongs to**. Unassigned clients fall back to the **Default group (id 0)** — the only way to filter *everyone*. So the script builds:
+
+- group `ads` and group `malware`, each populated with its lists;
+- group `pihole`, a **parking spot** for the original/migrated Pi-hole lists (e.g. StevenBlack, which is mixed ads+malware) — kept in the DB but **out of the Default**, so they don't block anyone until you move them;
+- the **Default group** is filled with only the categories passed to `setup` (default `malware`) — that is the network-wide filter.
+
+Lists stay `enabled=1`; what makes a category global is being **in the Default group**, not the enabled flag. To enable ads for everyone from the UI, assign the ads adlists to the Default group; for per-client rules, assign that client to the `ads`/`malware` group.
 
 It operates directly on the SQLite DB (`/etc/pihole/gravity.db`) and calls `pihole -g`, so it must run **inside the Pod**, not on the host. It is idempotent (`INSERT OR IGNORE`), safe to re-run.
 
@@ -85,17 +93,16 @@ kubectl cp ./pihole-adfilter.sh pihole/$POD:/tmp/pihole-adfilter.sh
 # 2. Get a shell inside the Pod (it already runs as root)
 kubectl exec -it -n pihole $POD -- bash
 
-# 3. Inside the Pod: make it executable and run the setup
+# 3. Inside the Pod: make it executable and run the bootstrap
 chmod +x /tmp/pihole-adfilter.sh
-/tmp/pihole-adfilter.sh setup        # creates groups, adds lists, runs pihole -g
+/tmp/pihole-adfilter.sh setup            # global filter = malware (default)
+# /tmp/pihole-adfilter.sh setup malware ads   # to also block ads network-wide
 ```
 
 Other commands (inside the Pod):
 
 ```bash
-/tmp/pihole-adfilter.sh ads off      # disable ads only (malware stays on)
-/tmp/pihole-adfilter.sh ads on       # re-enable ads
-/tmp/pihole-adfilter.sh status       # show group state and list count per category
+/tmp/pihole-adfilter.sh status       # show what filters the network + group state
 ```
 
 > No `sudo` is needed inside the Pod — the container already runs as root, so the script's `require_root` check passes. To change which blocklists are used, edit the `ADS_LISTS` / `MALWARE_LISTS` arrays at the top of the script and re-run `setup`.
