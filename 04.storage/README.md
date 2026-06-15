@@ -33,6 +33,10 @@ StorageClasses. Read-only shares have no StorageClass: they need static provisio
 
 Local NVMe volumes are managed at the Talos level — not via kubectl.
 
+> **Convention:** the `hdd-data-1` volume is shared across apps. Each app keeps its
+> persistent data under its own subdirectory (e.g. `/var/mnt/hdd-data-1/<app>`),
+> mounted via `hostPath` — no extra OS-level provisioning per app.
+
 Add the following to `controlplane.yaml` to provision a volume:
 
 ```yaml
