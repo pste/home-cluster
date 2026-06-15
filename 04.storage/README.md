@@ -1,5 +1,17 @@
 # Storage
 
+## Volume map (current cluster state)
+
+The cluster has two storage backends: the node's local disk (Talos UserVolume,
+hostPath) and the NAS, which exposes several SMB shares, some RW, some RO.
+
+| Backend | Source | Access |
+|---|---|---|
+| Local disk (hostPath) | `/var/mnt/hdd-data-1` | RWX |
+| NAS (SMB) | `//${NAS_IP}/${SHARE1}` | ROX |
+| NAS (SMB) | `//${NAS_IP}/${SHARE2}` | ROX |
+| NAS (SMB) | `//${NAS_IP}/${SHARE2}` | RWX |
+
 ## SMB shares (with CSI driver)
 
 CSI driver for SMB shares, pinned at `v1.13.0`. The manifests have been downloaded from the official install script and saved locally:
