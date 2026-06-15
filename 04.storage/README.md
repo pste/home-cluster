@@ -12,6 +12,74 @@ hostPath) and the NAS, which exposes several SMB shares, some RW, some RO.
 | NAS (SMB) | `//${NAS_IP}/${SHARE2}` | ROX |
 | NAS (SMB) | `//${NAS_IP}/${SHARE2}` | RWX |
 
+## Files
+
+| File | What it does |
+|---|---|
+| `01_rbac-csi-smb.yaml` | ServiceAccounts + RBAC for the CSI driver |
+| `02_csi-smb-driver.yaml` | Registers the `smb.csi.k8s.io` CSIDriver |
+| `03_csi-smb-controller.yaml` | Controller Deployment (provisioner + plugin) |
+| `04_csi-smb-node.yaml` | Node DaemonSet that mounts the shares on each node |
+| `05_storageclass-smb.yaml` | Generic `smb` StorageClass (`smbcreds`) |
+| `07_storageclass-nas-rw.yaml` | `nas-rw` StorageClass for the NAS, RW (`nascreds-rw`, via `envsubst`) |
+| `kustomization.yaml` | Applies the files above (driver + StorageClasses) |
+| `sample-pod-mount.yaml` | Static PV+PVC example for RO shares — reference only, not applied |
+
+Files `01`–`04` are the SMB CSI driver (pinned `v1.13.0`); `05`/`07` are the NAS
+StorageClasses. Read-only shares have no StorageClass: they need static provisioning
+(see the note in Step 2 and `sample-pod-mount.yaml`).
+
+## Local Disk (Talos UserVolume)
+
+Local NVMe volumes are managed at the Talos level — not via kubectl.
+
+Add the following to `controlplane.yaml` to provision a volume:
+
+```yaml
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: hdd-data-1
+provisioning:
+  diskSelector:
+    match: disk.transport == 'nvme'
+  minSize: 20GB
+  maxSize: 50GB
+```
+
+Then apply:
+
+```bash
+talosctl apply-config --file controlplane.yaml
+```
+
+Check the mount point:
+
+```bash
+talosctl get mountstatus
+```
+
+Use the volume in a Pod:
+
+```yaml
+volumes:
+  - name: hdd-data-1
+    hostPath:
+      path: /var/mnt/hdd-data-1
+```
+
+List available disks:
+
+```bash
+talosctl get disks -n $TALOSIP -e $TALOSIP
+```
+
+Wipe a disk if needed:
+
+```bash
+talosctl wipe disk nvme0n1 --drop-partition
+```
+
 ## SMB shares (with CSI driver)
 
 CSI driver for SMB shares, pinned at `v1.13.0`. The manifests have been downloaded from the official install script and saved locally:
@@ -100,56 +168,3 @@ If you need to bound again a PV, maybe after deleting it s PVC, you need to manu
 kubectl patch pv pv-nas-ro --type=json -p='[{"op":"remove","path":"/spec/claimRef"}]'
 ```
 This command will release the claimRef and allows a rebind. 
-
----
-
-## Local Disk (Talos UserVolume)
-
-Local NVMe volumes are managed at the Talos level — not via kubectl.
-
-Add the following to `controlplane.yaml` to provision a volume:
-
-```yaml
----
-apiVersion: v1alpha1
-kind: UserVolumeConfig
-name: hdd-data-1
-provisioning:
-  diskSelector:
-    match: disk.transport == 'nvme'
-  minSize: 20GB
-  maxSize: 50GB
-```
-
-Then apply:
-
-```bash
-talosctl apply-config --file controlplane.yaml
-```
-
-Check the mount point:
-
-```bash
-talosctl get mountstatus
-```
-
-Use the volume in a Pod:
-
-```yaml
-volumes:
-  - name: hdd-data-1
-    hostPath:
-      path: /var/mnt/hdd-data-1
-```
-
-List available disks:
-
-```bash
-talosctl get disks -n $TALOSIP -e $TALOSIP
-```
-
-Wipe a disk if needed:
-
-```bash
-talosctl wipe disk nvme0n1 --drop-partition
-```
