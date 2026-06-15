@@ -5,8 +5,12 @@ metadata:
   labels:
     # Pi-hole's container starts as root (s6 init, binds port 53, drops to its
     # internal user by itself) and cannot satisfy the "restricted" profile.
-    # Declaring "baseline" here overrides the cluster-wide warn/audit=restricted
-    # default set by Talos, silencing the PodSecurity warning at apply time.
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/warn: baseline
-    pod-security.kubernetes.io/audit: baseline
+    # On top of that, settings + gravity SQLite DB live on a Talos UserVolume
+    # mounted via a hostPath volume (see 03_deployment.yaml). hostPath is
+    # forbidden by both "baseline" and "restricted", so the namespace must opt
+    # into "privileged" — same reasoning as the jellyfin and tailscale namespaces.
+    # The container itself does NOT request extra capabilities or privileged
+    # mode; only the hostPath volume forces this profile.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/audit: privileged

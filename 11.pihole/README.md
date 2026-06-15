@@ -69,11 +69,11 @@ The Deployment sets a dnsmasq wildcard (`FTLCONF_misc_dnsmasq_lines = address=/$
 Notes:
 - No NXDOMAIN: non-existent names under `${DOMAIN}` also resolve to Traefik (you get its 404).
 - To point a specific name elsewhere, add a more specific line (they stack with `;` separators), e.g. `address=/nas.${DOMAIN}/<NAS_IP>` — more specific wins.
-- Don't add Local DNS Records from the UI: with `emptyDir` storage they vanish on Pod restart. Keep DNS config in the Deployment.
+- Prefer keeping DNS config in the Deployment (versioned). Local DNS Records added from the UI now persist (data is on the local Talos disk), but they live outside Git.
 
 ## Ad/malware blocklists — `pihole-adfilter.sh`
 
-`pihole-adfilter.sh` is a **bootstrap script to run after a reinstall or Pod restart**: storage is an `emptyDir`, so `gravity.db` (groups, adlists, associations) is wiped on every restart and must be rebuilt. It keeps two separate groups — `ads` and `malware` — so ads can be toggled off while malware/phishing filtering always stays on.
+`pihole-adfilter.sh` is a **bootstrap script to run on first install** (or after wiping the data volume): it builds `gravity.db` (groups, adlists, associations). Storage is now persistent (local Talos disk), so the DB survives Pod restarts and no longer needs rebuilding each time. It keeps two separate groups — `ads` and `malware` — so ads can be toggled off while malware/phishing filtering always stays on.
 
 It operates directly on the SQLite DB (`/etc/pihole/gravity.db`) and calls `pihole -g`, so it must run **inside the Pod**, not on the host. It is idempotent (`INSERT OR IGNORE`), safe to re-run.
 
@@ -115,6 +115,7 @@ nslookup whatever.$DOMAIN $PIHOLE_IP
 
 ## Notes
 
-- Storage is an `emptyDir`: blocklists and settings are lost on Pod restart (gravity re-downloads the lists at startup). Switch to a PVC for persistence — avoid the SMB storage classes, SQLite does not play well with network shares.
+- Storage is persistent on a `hostPath` subdirectory of the `hdd-data-1` UserVolume (`/var/mnt/hdd-data-1/pihole-data`): blocklists and settings survive Pod restarts. The local disk is used on purpose — SQLite (`gravity.db`) does not play well with the SMB/network storage classes. The kubelet creates the hostPath dir as `root:root 0755`, and FTL by default drops to uid/gid 1000, which cannot create `gravity.db` there. Rather than a chown initContainer, FTL is told to **run as root** via `PIHOLE_UID=0` / `PIHOLE_GID=0`, so it writes `/etc/pihole` directly with no extra step. This is acceptable because the namespace is already `privileged` and the container starts as root anyway. (Avoid a separate fix-up image like `busybox`: with `strategy: Recreate` the old Pod is killed before the new one starts, so during a rollout Pi-hole — the LAN/node DNS — is down and the node cannot resolve the registry to pull anything new → `Init:ImagePullBackOff` deadlock.)
+- A `startupProbe` (tcpSocket on port 53, ~300s headroom) gates liveness/readiness during boot. On a fresh volume the first gravity build waits up to 120s for DNS and only then binds port 53 — longer than the liveness budget — so without the startupProbe the container is killed mid-bootstrap (exit 137) in a ~2-minute restart loop and never finishes building `gravity.db`.
 - Don't point CoreDNS or the cluster nodes at Pi-hole: cluster DNS stays on CoreDNS (`kube-system`), Pi-hole only serves LAN clients.
-- The namespace declares the `baseline` Pod Security profile: Pi-hole's container starts as root (s6 init, port 53) and cannot satisfy `restricted`. Without these labels, Talos' default warn/audit=restricted produces a PodSecurity warning at apply time.
+- The namespace declares the `privileged` Pod Security profile: Pi-hole's container starts as root (s6 init, port 53) and cannot satisfy `restricted`, and the persistent `hostPath` volume is forbidden by both `baseline` and `restricted`. The container itself requests no extra capabilities/privileged mode — only the hostPath forces this profile (same as the jellyfin and tailscale namespaces). Without it, Talos' default warn/audit=restricted produces a PodSecurity violation at apply time.

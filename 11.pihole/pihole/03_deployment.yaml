@@ -25,6 +25,15 @@ spec:
           env:
             - name: TZ
               value: "Europe/Rome"
+            # Run FTL as root (instead of dropping to uid/gid 1000) so it can
+            # write to /etc/pihole on the persistent hostPath, which the kubelet
+            # creates as root:root 0755. This removes the need for a chown
+            # initContainer. Acceptable here: the namespace is already
+            # "privileged" and the container starts as root anyway.
+            - name: PIHOLE_UID
+              value: "0"
+            - name: PIHOLE_GID
+              value: "0"
             # Pi-hole v6 configuration via FTLCONF_* env vars
             - name: FTLCONF_webserver_api_password
               valueFrom:
@@ -61,6 +70,16 @@ spec:
             - name: web
               containerPort: 80
               protocol: TCP
+          # On a fresh volume the first gravity build waits up to 120s for DNS
+          # then downloads the lists, and FTL does not bind port 53 until it
+          # finishes — longer than the liveness budget (delay 30s + 3×30s). The
+          # startupProbe gates liveness/readiness until FTL is actually up
+          # (~300s headroom), so the container is not killed mid-bootstrap.
+          startupProbe:
+            tcpSocket:
+              port: dns-tcp
+            periodSeconds: 10
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /admin/
@@ -76,7 +95,11 @@ spec:
             - name: pihole-data
               mountPath: /etc/pihole
       volumes:
-        # emptyDir: settings and blocklists are lost on Pod restart (gravity re-downloads them).
-        # Replace with a PVC if you want persistence — note that SQLite on SMB shares is unreliable.
+        # Settings + gravity SQLite DB on the local Talos disk (persistent,
+        # SQLite-safe — unlike the SMB shares). Subdirectory on the existing
+        # hdd-data-1 UserVolume, so no extra OS-level provisioning is needed.
+        # Survives Pod restarts: settings and blocklists are no longer re-downloaded.
         - name: pihole-data
-          emptyDir: {}
+          hostPath:
+            path: /var/mnt/hdd-data-1/pihole-data
+            type: DirectoryOrCreate
