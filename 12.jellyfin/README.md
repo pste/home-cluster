@@ -10,7 +10,8 @@ Self-hosted media server, exposed on HTTPS through Traefik at `jellyfin.${DOMAIN
   share **read-only** (`//${NAS_IP}/${NAS_SHARE_VIDEO}`), reusing the
   `nascreds-ro` secret from the storage setup
 - Deployment running `jellyfin/jellyfin`:
-  - `/config` → local Talos UserVolume `/var/mnt/jellyfin-config` (persistent, SQLite-safe)
+  - `/config` → subdirectory `/var/mnt/hdd-data-1/jellyfin-config` on the shared
+    local Talos disk (persistent, SQLite-safe)
   - `/cache` → `emptyDir` (transient transcode scratch)
   - `/media/video` → NAS share (read-only)
 - `ClusterIP` Service on port 8096
@@ -31,35 +32,12 @@ NAS_SHARE_VIDEO=video       # NAS share holding the media library (read-only)
 1. **NAS read-only credentials** — the `nascreds-ro` secret must already exist in
    the `default` namespace (created during [04.storage](../04.storage/README.md), Step 1b).
 
-2. **Local Talos UserVolume for the config** — the Deployment mounts
-   `/var/mnt/jellyfin-config` from the node. Provision it at the Talos level
-   (it is **not** a kubectl resource) by adding to `controlplane.yaml`:
-
-   ```yaml
-   ---
-   apiVersion: v1alpha1
-   kind: UserVolumeConfig
-   name: jellyfin-config
-   provisioning:
-     diskSelector:
-       match: disk.transport == 'nvme'
-     minSize: 10GB
-     maxSize: 30GB
-   ```
-
-   then apply and verify the mount:
-
-   ```bash
-   talosctl apply-config --file controlplane.yaml
-   talosctl get mountstatus       # expect /var/mnt/jellyfin-config
-   ```
-
-   > **This step is mandatory, not optional.** Talos' root filesystem is
-   > read-only, so without the UserVolume mounted at `/var/mnt/jellyfin-config`
-   > the Pod stays in `ContainerCreating` with
-   > `mkdir /var/mnt/jellyfin-config: read-only file system` —
-   > `hostPath: DirectoryOrCreate` cannot create a directory on the immutable
-   > root. The path becomes writable only once Talos mounts the volume there.
+2. **Local disk for the config** — the Deployment mounts the config as a
+   subdirectory (`/var/mnt/hdd-data-1/jellyfin-config`) of the existing
+   `hdd-data-1` Talos UserVolume. No per-app Talos provisioning is needed:
+   `hostPath: DirectoryOrCreate` creates the subdirectory on first start, since
+   `/var/mnt/hdd-data-1` is already a writable mount (see
+   [04.storage](../04.storage/README.md), "Local Disk").
 
 ## Apply
 

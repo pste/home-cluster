@@ -66,17 +66,13 @@ spec:
               mountPath: /media/video
               readOnly: true
       volumes:
-        # TEMPORARY (testing): config on emptyDir — library/users are LOST on
-        # every Pod restart. Switch back to the Talos UserVolume below for real
-        # use (persistent, SQLite-safe). See README "Prerequisites".
+        # Config + SQLite library on the local Talos disk (persistent, SQLite-safe
+        # — unlike the SMB shares). Subdirectory on the existing hdd-data-1
+        # UserVolume, so no extra OS-level provisioning is needed.
         - name: config
-          emptyDir: {}
-        # Persistent option: Talos UserVolume "jellyfin-config" → /var/mnt/jellyfin-config
-        # on the node. Provision it in controlplane.yaml at the OS level (see README).
-        # - name: config
-        #   hostPath:
-        #     path: /var/mnt/jellyfin-config
-        #     type: DirectoryOrCreate
+          hostPath:
+            path: /var/mnt/hdd-data-1/jellyfin-config
+            type: DirectoryOrCreate
         - name: cache
           emptyDir: {}
         - name: media
