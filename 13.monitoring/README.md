@@ -99,8 +99,17 @@ two weeks.
    only secret) and subscribe to it from the ntfy app on your phone.
 
 2. **healthchecks.io check** — create a check with **period 1 minute** and
-   **grace 5 minutes**, and configure its integrations (email, or ntfy too) to
-   notify you when it goes down. Copy its ping URL.
+   **grace 5 minutes**, and configure its integrations to notify you when it
+   goes down. Copy its ping URL.
+
+   healthchecks.io has a native **ntfy** integration (Integrations → ntfy), so
+   every notification can land on the same topic:
+   - server: `https://ntfy.sh`
+   - topic: the same one used in `NTFY_URL`
+   - priority: `max/urgent` for "down", default for "up"
+
+   Keep **email** as a second integration: if ntfy itself is the problem, the
+   "down" notification still reaches you.
 
 3. **Local disk** — the TSDB goes into `/var/mnt/hdd-data-1/prometheus-data`,
    created on first start (see [04.storage](../04.storage/README.md), "Local Disk").
