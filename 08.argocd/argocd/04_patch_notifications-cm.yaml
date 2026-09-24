@@ -1,0 +1,74 @@
+# ArgoCD Notifications → ntfy.
+# The notifications controller is already part of the upstream manifest
+# (02_argocd.yaml): this patch only adds service, templates, triggers and a
+# global subscription, so every Application is covered without annotations.
+#
+# IMPORTANT: "$ntfy-url" is an ArgoCD reference to a key of
+# argocd-notifications-secret, NOT a shell variable. Apply with an explicit
+# envsubst variable list or it gets wiped:
+#   envsubst '${DOMAIN} ${NTFY_URL}'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  # ntfy topic URL is read from argocd-notifications-secret (key "ntfy-url").
+  # Headers are static: the message body carries the details.
+  service.webhook.ntfy: |
+    url: $ntfy-url
+    headers:
+      - name: Title
+        value: ArgoCD
+      - name: Tags
+        value: argocd
+      - name: Priority
+        value: high
+
+  template.app-sync-failed: |
+    webhook:
+      ntfy:
+        method: POST
+        body: |
+          {{.app.metadata.name}}: sync FAILED
+          {{.app.status.operationState.message}}
+          https://argocd.${DOMAIN}/applications/argocd/{{.app.metadata.name}}
+
+  template.app-health-degraded: |
+    webhook:
+      ntfy:
+        method: POST
+        body: |
+          {{.app.metadata.name}}: health is Degraded
+          https://argocd.${DOMAIN}/applications/argocd/{{.app.metadata.name}}
+
+  template.app-sync-status-unknown: |
+    webhook:
+      ntfy:
+        method: POST
+        body: |
+          {{.app.metadata.name}}: sync status is Unknown (repo unreachable or manifest error?)
+          https://argocd.${DOMAIN}/applications/argocd/{{.app.metadata.name}}
+
+  trigger.on-sync-failed: |
+    - description: Application syncing has failed
+      send: [app-sync-failed]
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
+
+  trigger.on-health-degraded: |
+    - description: Application has degraded
+      send: [app-health-degraded]
+      when: app.status.health.status == 'Degraded'
+
+  trigger.on-sync-status-unknown: |
+    - description: Application sync status is Unknown
+      send: [app-sync-status-unknown]
+      when: app.status.sync.status == 'Unknown'
+
+  # Default subscription for all Applications
+  subscriptions: |
+    - recipients:
+        - ntfy
+      triggers:
+        - on-sync-failed
+        - on-health-degraded
+        - on-sync-status-unknown

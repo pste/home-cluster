@@ -19,3 +19,6 @@ patches:
     target:
       kind: ConfigMap
       name: argocd-cmd-params-cm
+  # ArgoCD Notifications → ntfy (sync failed / degraded / unknown)
+  - path: 04_patch_notifications-cm.yaml
+  - path: 05_patch_notifications-secret.yaml

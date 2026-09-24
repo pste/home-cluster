@@ -9,18 +9,18 @@ This setup installs ArgoCD using the official manifest pinned at `stable` and sa
 ### Install: apply all resources via kustomize
 
 The ArgoCD manifest contains large CRDs that exceed the annotation size limit of `kubectl apply`. Use server-side apply.  
-The ingress uses `${DOMAIN}` — substitute it via `envsubst` before applying:
+The ingress uses `${DOMAIN}` and the notifications secret `${NTFY_URL}` — substitute them via `envsubst` (explicit list, see [Notifications](#notifications)) before applying:
 
 ```bash
 set -a; source ../.env; set +a
-kubectl kustomize ./argocd | envsubst | kubectl apply --server-side -f -
+kubectl kustomize ./argocd | envsubst '${DOMAIN} ${NTFY_URL}' | kubectl apply --server-side -f -
 ```
 
 On subsequent updates, add `--force-conflicts` to handle field manager conflicts:
 
 ```bash
 set -a; source ../.env; set +a
-kubectl kustomize ./argocd | envsubst | kubectl apply --server-side --force-conflicts -f -
+kubectl kustomize ./argocd | envsubst '${DOMAIN} ${NTFY_URL}' | kubectl apply --server-side --force-conflicts -f -
 ```
 
 ## Accessing the UI
@@ -61,6 +61,36 @@ Password:
 kubectl get secret argocd-initial-admin-secret \
   -n argocd \
   -o jsonpath="{.data.password}" | base64 -d
+```
+
+## Notifications
+
+The notifications controller shipped with the upstream manifest is configured
+to push to **ntfy** (same topic used by [13.monitoring](../13.monitoring/README.md)):
+
+- `04_patch_notifications-cm.yaml` — `ntfy` webhook service, templates, triggers
+  and a **global subscription**, so every Application is covered without
+  per-app annotations. Triggers:
+  - `on-sync-failed` — sync operation ended in `Error`/`Failed` (message
+    includes the sync error)
+  - `on-health-degraded` — app health is `Degraded` (e.g. pods crashing)
+  - `on-sync-status-unknown` — sync status `Unknown` (repo unreachable,
+    manifest generation error)
+- `05_patch_notifications-secret.yaml` — the ntfy topic URL (`NTFY_URL` from `.env`)
+
+The ConfigMap contains `$ntfy-url`, an ArgoCD reference to a secret key, **not**
+a shell variable. Since notifications were added, apply with an explicit list
+of variables for envsubst:
+
+```bash
+set -a; source ../.env; set +a
+kubectl kustomize ./argocd | envsubst '${DOMAIN} ${NTFY_URL}' | kubectl apply --server-side --force-conflicts -f -
+```
+
+Quick check of the controller:
+
+```bash
+kubectl -n argocd logs deploy/argocd-notifications-controller --tail=50
 ```
 
 ## CI/CD Flow
