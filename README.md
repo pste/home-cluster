@@ -15,6 +15,7 @@ The stack covers everything from OS installation to CI/CD, with all resources ma
 | DNS | CoreDNS (custom zones) + Tailscale split DNS |
 | TLS | cert-manager + Let's Encrypt (Cloudflare DNS challenge) |
 | CI/CD | ArgoCD + GitHub Actions + DockerHub |
+| Monitoring | Prometheus + Alertmanager + blackbox-exporter → ntfy, healthchecks.io dead man's switch |
 
 ## Environment variables
 
@@ -61,3 +62,5 @@ envsubst < 03.metallb/metallb/02_ipaddresspool.yaml | kubectl apply -f -
 9. **[CoreDNS](09.coredns/README.md)** — Custom DNS zones for internal domains. Resolves `*.your.domain` and `*.nestix.dev` to Traefik's ClusterIP. Combined with Tailscale split DNS for resolution from outside the cluster.
 
 10. **[cert-manager](10.cert-manager/README.md)** — Automated TLS certificate management via Let's Encrypt and Cloudflare DNS challenge. Issues and renews certificates for all Ingress resources automatically.
+
+13. **[Monitoring](13.monitoring/README.md)** — Prometheus + Alertmanager alerting on crashing pods, expiring/failed certificates, ArgoCD apps out of sync or degraded, disk and memory. blackbox-exporter probes the HTTPS endpoints, healthchecks.io acts as external dead man's switch, ArgoCD Notifications reports sync failures. Notifications go to ntfy.

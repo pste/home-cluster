@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  - 01_namespace.yaml
+  - 02_rbac.yaml
+  - 03_prometheus-config.yaml
+  - 04_prometheus.yaml
+  - 05_alertmanager.yaml
+  - 06_kube-state-metrics.yaml
+  - 07_node-exporter.yaml
+  - 08_blackbox-exporter.yaml
+  - 09_ingress.yaml

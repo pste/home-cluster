@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  # Recreate avoids two instances locking the same TSDB directory during a rollout
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      # The image runs as "nobody" (65534), but the kubelet creates the hostPath
+      # directory as root:root 0755. Running as root removes the need for a
+      # chown initContainer — same trade-off accepted for pihole: the namespace
+      # is already "privileged" for the hostPath volume.
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: prometheus
+          # Pin to a specific version — check latest stable at https://github.com/prometheus/prometheus/releases
+          image: quay.io/prometheus/prometheus:v3.14.0
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=15d
+            - --web.external-url=https://prometheus.${DOMAIN}
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              memory: "1Gi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        # TSDB on the local Talos disk, subdirectory of the shared hdd-data-1
+        # UserVolume (see 04.storage convention).
+        - name: data
+          hostPath:
+            path: /var/mnt/hdd-data-1/prometheus-data
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http

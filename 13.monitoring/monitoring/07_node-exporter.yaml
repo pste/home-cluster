@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+    spec:
+      # Host network/PID so that network and process metrics are the node's,
+      # not the container's.
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: node-exporter
+          # Pin to a specific version — check latest stable at https://github.com/prometheus/node_exporter/releases
+          image: quay.io/prometheus/node-exporter:v1.12.1
+          args:
+            # The node root filesystem is mounted at /host: node-exporter strips
+            # this prefix, so mountpoints appear as on the node (/var, /var/mnt/...)
+            - --path.rootfs=/host
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              memory: "128Mi"
+          volumeMounts:
+            - name: root
+              mountPath: /host
+              readOnly: true
+              # see mounts created on the host after the pod started (UserVolumes)
+              mountPropagation: HostToContainer
+      volumes:
+        - name: root
+          hostPath:
+            path: /
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: monitoring
+spec:
+  selector:
+    app: node-exporter
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics
