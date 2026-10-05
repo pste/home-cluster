@@ -104,6 +104,9 @@ If you need to modify further your cluster config, just edit the `talosconfig.ya
 `talosctl apply-config -n $TALOSIP -e $TALOSIP`
 
 # Upgrade to a new Server version
+
+## Upgrade Talos
+
 Check actual version:  
 `talosctl version`  
 Check latest remote version:  
@@ -115,22 +118,39 @@ Check latest remote minor version (i.e. for 1.13):
 Note: it is NOT necessary to scale down every non-system Pod. 
 The upgrade puts the node in drain state; the drain sends a sigterm to the pods and they're terminated.  
 Just check if exists some PodDisruptionBudget (kubectl get pdb -A): if it exists means that a Pod has "minAvailable: 1" and will not be killed.  
-
-Launch the upgrade:  
-`talosctl upgrade --nodes $TALOSIP -e $TALOSIP --image ghcr.io/siderolabs/installer:v1.12.0`  
-
-During the reboot phase you can chech the status with:  
-`talosctl dashboard`
-
-## Upgrade to latest Server build version
-If not using the ImageBuilder (as I am doing), you can launch:  
+ 
+To upgrade, if not using the ImageBuilder (as I am doing), you can launch:  
 `talosctl upgrade --image ghcr.io/siderolabs/installer:v1.13.11` 
 
 To check if using the ImageBuilder launch:  
 `talosctl get machineconfig -o yaml | grep 'image:' | grep installer`
 If the installer is `ghcr.io/siderolabs/installer:v1.10.3` you're using the base image; otherwise you'll find something like `factory.talos.dev/installer/<SCHEMATIC_ID>:v1.13.2`.
 
-## Client upgrade
+During the reboot phase you can chech the status with:  
+`talosctl dashboard`
+
+## Upgrade K8S
+Detect current version:  
+`kubectl version`  
+
+You can only upgrade to the next minor, so if you have 1.33 you need to detect next (1.34) latest version:  
+`curl -s https://dl.k8s.io/release/stable-1.34.txt`  
+
+Now you're ready to upgrade.
+First do an etcd backup:  
+`talosctl etcd snapshot etcd-backup.db`  
+then simulate the upgrade:  
+`talosctl upgrade-k8s --to 1.34.12 --dry-run`  
+and finally apply the real upgrade:
+`talosctl upgrade-k8s --to 1.34.12`  
+
+After the upgrade we need to rebuild our CoreDNS changes, so got to `09.coredns/` and:
+```
+set -a; source ../.env; set +a
+kubectl kustomize ./coredns | envsubst | kubectl apply -f -
+```
+
+## Upgrade Client talosctl
 ```bash
 # Remove the old binary (if required by permissions)
 sudo rm /usr/local/bin/talosctl
@@ -138,6 +158,8 @@ sudo rm /usr/local/bin/talosctl
 # Download and install the latest client
 curl -sL https://talos.dev/install | sh
 ```
+
+# Maintenance
 
 ## Client certificate expired
 Check if expired:
