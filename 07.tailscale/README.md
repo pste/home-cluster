@@ -61,6 +61,11 @@ kubectl get svc -n ingress-traefik traefik
 # 3. Reach the app by hostname
 curl http://myapp.example.com
 ```
+### Step 6: disable key expiry for the cluster
+The TS key expires after 180 days. To avoid that follow the steps:  
+1. go to https://login.tailscale.com
+2. Network => Machines => search the cluster
+3. three dots => Disable key expiry
 
 ## Notes
 
