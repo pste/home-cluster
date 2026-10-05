@@ -103,15 +103,41 @@ export KUBECONFIG=~/.talosctl/kubeconfig
 If you need to modify further your cluster config, just edit the `talosconfig.yaml` and:
 `talosctl apply-config -n $TALOSIP -e $TALOSIP`
 
-## Upgrade to a new version
+# Upgrade to a new Server version
 Check actual version:  
 `talosctl version`  
+Check latest remote version:  
+`curl -s https://api.github.com/repos/siderolabs/talos/releases/latest | grep -m1 tag_name`  
+Warning: avoid to jump minor versions setup (i.e. from 1.12 to 1.14). Always step into every version
+Check latest remote minor version (i.e. for 1.13):  
+`curl -s "https://api.github.com/repos/siderolabs/talos/releases?per_page=100" | grep tag_name | grep v1.13`  
 
-Scale down not-system pods. To do this scale every application deployment to 0.  
-This step is needed because this is a mono-node cluster.
+Note: it is NOT necessary to scale down every non-system Pod. 
+The upgrade puts the node in drain state; the drain sends a sigterm to the pods and they're terminated.  
+Just check if exists some PodDisruptionBudget (kubectl get pdb -A): if it exists means that a Pod has "minAvailable: 1" and will not be killed.  
 
 Launch the upgrade:  
-`talosctl upgrade --nodes $TALOSIP -e $TALOSIP --image ghcr.io/siderolabs/installer:v1.12.0`
+`talosctl upgrade --nodes $TALOSIP -e $TALOSIP --image ghcr.io/siderolabs/installer:v1.12.0`  
+
+During the reboot phase you can chech the status with:  
+`talosctl dashboard`
+
+## Upgrade to latest Server build version
+If not using the ImageBuilder (as I am doing), you can launch:  
+`talosctl upgrade --image ghcr.io/siderolabs/installer:v1.13.11` 
+
+To check if using the ImageBuilder launch:  
+`talosctl get machineconfig -o yaml | grep 'image:' | grep installer`
+If the installer is `ghcr.io/siderolabs/installer:v1.10.3` you're using the base image; otherwise you'll find something like `factory.talos.dev/installer/<SCHEMATIC_ID>:v1.13.2`.
+
+## Client upgrade
+```bash
+# Remove the old binary (if required by permissions)
+sudo rm /usr/local/bin/talosctl
+
+# Download and install the latest client
+curl -sL https://talos.dev/install | sh
+```
 
 ## Client certificate expired
 Check if expired:
