@@ -127,8 +127,11 @@ export KUBECONFIG=~/.talosctl/kubeconfig
 
 ## Apply changes to installed Talos
 
-If you need to modify further your cluster config, just edit the `talosconfig.yaml` and:
-`talosctl apply-config -n $TALOSIP -e $TALOSIP`
+If you need to modify further your cluster config, just edit the `controlplane.yaml` and:
+`talosctl apply-config -n $TALOSIP -e $TALOSIP --file ./controlplane.yaml`
+
+Warning: before applying, be sure the local `controlplane.yaml` is aligned with the live config (see [Sync local config](#sync-local-config-after-upgrades)).
+A stale file rolls back everything changed on the node (K8s version, live patches, ...).
 
 # Upgrade to a new Server version
 
@@ -176,6 +179,17 @@ After the upgrade we need to rebuild our CoreDNS changes, so got to `09.coredns/
 set -a; source ../.env; set +a
 kubectl kustomize ./coredns | envsubst | kubectl apply -f -
 ```
+
+## Sync local config after upgrades
+
+Upgrades (`upgrade-k8s`) and live patches (`patch mc`) change the config on the node, not the local `controlplane.yaml`.  
+After every upgrade/patch, export the live config and align the local file (the live export has no comments, so align field by field):
+```
+talosctl -n $TALOSIP get machineconfig -o jsonpath='{.spec}' > mc-live.yaml
+diff <(grep -vE '^\s*#' mc-live.yaml) <(grep -vE '^\s*#' controlplane.yaml)
+```
+Note: `talosctl upgrade --image ...` does NOT update `machine.install.image` in the config, so that field stays at the first installed version.  
+Never commit `controlplane.yaml`/`mc-live.yaml`: they contain the cluster secrets.
 
 ## Upgrade Client talosctl
 ```bash
