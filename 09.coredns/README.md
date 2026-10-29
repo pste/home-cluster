@@ -27,7 +27,7 @@ CoreDNS has the `reload` plugin enabled — it picks up ConfigMap changes automa
 ## Verify
 
 ```bash
-kubectl run dns-test --rm -it --restart=Never --image=busybox -- nslookup qualcosa.$DOMAIN 10.96.0.10
+kubectl run dns-test --rm -it --restart=Never --image=busybox -- nslookup qualcosa.$DOMAIN 10.96.0.10   # 10.96.0.10 = CoreDNS ClusterIP (kube-dns Service)
 ```
 
 ## Tailscale split DNS

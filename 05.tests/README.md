@@ -10,7 +10,8 @@ Warning: would violate PodSecurity "restricted:latest": allowPrivilegeEscalation
 ## Test the pod reachability
 
 Check the web service can be reached:  
-`curl 192.168.x.bbb`
+`curl 192.168.x.bbb`  
+(`192.168.x.bbb` = external IP assigned by MetalLB to the Ingress controller: `kubectl get svc -A | grep LoadBalancer`)
 
 ## Testing a (local) DNS route
 

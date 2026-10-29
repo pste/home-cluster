@@ -65,8 +65,8 @@ Pi-hole stays the DNS for LAN clients only; Pods resolve `${DOMAIN}` via CoreDNS
 machine:
   network:
     nameservers:
-      - 1.1.1.1
-      - 8.8.8.8
+      - 1.1.1.1         # Cloudflare public DNS
+      - 8.8.8.8         # Google public DNS
 ```
 On an already running node you can apply it live (it persists across reboots):  
 `talosctl -n $TALOSIP patch mc --mode=no-reboot -p '{"machine":{"network":{"nameservers":["1.1.1.1","8.8.8.8"]}}}'`  
@@ -78,8 +78,8 @@ As a fallback that needs no DNS, add the FRITZ!Box as NTP server by IP (enable "
 machine:
   time:
     servers:
-      - time.cloudflare.com
-      - 192.168.178.1
+      - time.cloudflare.com   # primary NTP (hostname, needs DNS)
+      - 192.168.178.1         # FRITZ!Box default LAN IP: NTP fallback reachable without DNS
 ```
 Live apply: `talosctl -n $TALOSIP patch mc --mode=no-reboot -p '{"machine":{"time":{"servers":["time.cloudflare.com","192.168.178.1"]}}}'`  
 Check with: `talosctl -n $TALOSIP get timestatus`
@@ -117,7 +117,7 @@ Same for default node:
 Now the node is ready.  
 
 It is useful to add some env to your `.bashrc` file:  
-export TALOSIP="192.168.x.y"
+export TALOSIP="192.168.x.y"   # static LAN IP of the Talos node
 export TALOSCONFIG=~/.talosctl/talosconfig
 export KUBECONFIG=~/.talosctl/kubeconfig
 

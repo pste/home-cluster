@@ -56,7 +56,7 @@ kubectl get secret tailscale-state -n tailscale
 kubectl get svc -n ingress-traefik traefik
 
 # 2. Add an entry to /etc/hosts on the client (use the ClusterIP from above)
-#    10.100.197.118  myapp.example.com
+#    10.100.197.118  myapp.example.com   # example Traefik ClusterIP
 
 # 3. Reach the app by hostname
 curl http://myapp.example.com
