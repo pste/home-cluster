@@ -44,7 +44,7 @@ kubectl rollout restart deployment/pihole -n pihole
 Point the FRITZ!Box **upstream** resolver at Pi-hole — this is the scheme that actually works on this router (config only on the router, nothing changes in the cluster):
 
 1. **Internet → Account Information → DNS Server → "Use other DNSv4 servers"**: preferred `$PIHOLE_IP`, alternative empty (or a public DNS as fallback, see note)
-2. No DHCP lease renewal needed — clients already use the router (`192.168.x.1`) as DNS, and it now forwards to Pi-hole.
+2. No DHCP lease renewal needed — clients already use the router (`192.168.178.1`) as DNS, and it now forwards to Pi-hole.
 
 > **Why not the "Local DNS server" field?** On this FRITZ!Box, `Home Network → Network → Network Settings → Local DNS server = $PIHOLE_IP` does **not** redirect client queries to Pi-hole: the router keeps advertising **itself** as the clients' DNS via DHCP, so traffic still goes `client → router → upstream`. Setting that field while leaving the upstream on the ISP makes the dashboard stay empty even though the internet works. The upstream setting above is what counts.
 >
@@ -56,7 +56,7 @@ Add `$DOMAIN` to the exceptions in **Home Network → Network → Network Settin
 
 FTL's per-client rate limit is disabled in the Deployment (`FTLCONF_dns_rateLimit_count=0`): the whole LAN arrives from the router's single IP, which would otherwise trip the limit.
 
-The Service uses `externalTrafficPolicy: Local` so Pi-hole logs the **real source IP** instead of the cluster pod-network IP (`10.244.0.1`). With the upstream scheme above that real IP is the router (`192.168.x.1`); it would become the actual device IP only if clients ever query Pi-hole directly. Safe with MetalLB L2, which advertises the Service IP only from a node running the Pod.
+The Service uses `externalTrafficPolicy: Local` so Pi-hole logs the **real source IP** instead of the cluster pod-network IP (`10.244.0.1`). With the upstream scheme above that real IP is the router (`192.168.178.1`); it would become the actual device IP only if clients ever query Pi-hole directly. Safe with MetalLB L2, which advertises the Service IP only from a node running the Pod.
 
 Admin UI: `https://pihole.$DOMAIN/admin/` (resolved by CoreDNS split DNS → Traefik, certificate issued by cert-manager via the `letsencrypt` ClusterIssuer).
 

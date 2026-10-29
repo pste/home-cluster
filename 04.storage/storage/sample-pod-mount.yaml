@@ -35,7 +35,7 @@ spec:
     readOnly: true
     volumeHandle: nas-ro   # must be unique per share in the cluster
     volumeAttributes:
-      source: "//192.168.1.2/Folder"   # replace with actual NAS IP and share
+      source: "//192.168.x.x/Folder"   # replace with actual NAS IP and share
     nodeStageSecretRef:
       name: nascreds-ro
       namespace: default
