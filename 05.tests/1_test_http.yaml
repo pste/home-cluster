@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx
+        image: nginx:1.27-alpine
         ports:
         - containerPort: 80 # must match where the container listen to !
 ---
@@ -60,17 +60,14 @@ kind: Ingress
 metadata:
   name: web-test-ingress
   namespace: web-test
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/proxy-body.size: 200M
 spec:
-  ingressClassName: nginx
-  # tls: 
+  ingressClassName: traefik
+  # tls:
   #   - hosts:
-  #     - web-test.homelab.net
-  #    secretName: web-test.homelab.net
+  #     - web-test.${DOMAIN}
+  #    secretName: web-test-tls
   rules:
-    - host: web-test.homelab.net
+    - host: web-test.${DOMAIN}
       http:
         paths:
           - path: /
