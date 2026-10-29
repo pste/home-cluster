@@ -58,6 +58,33 @@ machine:
 ```
 
 4. 
+Set static public DNS for the node. The node must NOT use Pi-hole as resolver: Pi-hole runs as a Pod on this node,
+so after a reboot Talos cannot resolve NTP/registries, the boot hangs and Pi-hole never starts (deadlock).  
+Pi-hole stays the DNS for LAN clients only; Pods resolve `${DOMAIN}` via CoreDNS (see `09.coredns/`).
+```
+machine:
+  network:
+    nameservers:
+      - 1.1.1.1
+      - 8.8.8.8
+```
+On an already running node you can apply it live (it persists across reboots):  
+`talosctl -n $TALOSIP patch mc --mode=no-reboot -p '{"machine":{"network":{"nameservers":["1.1.1.1","8.8.8.8"]}}}'`  
+Check with: `talosctl -n $TALOSIP get resolvers`
+
+Talos waits for time sync before starting etcd/kubelet, and the default NTP server is a hostname (`time.cloudflare.com`).  
+As a fallback that needs no DNS, add the FRITZ!Box as NTP server by IP (enable "FRITZ!Box as NTP server for the home network" on the router):
+```
+machine:
+  time:
+    servers:
+      - time.cloudflare.com
+      - 192.168.178.1
+```
+Live apply: `talosctl -n $TALOSIP patch mc --mode=no-reboot -p '{"machine":{"time":{"servers":["time.cloudflare.com","192.168.178.1"]}}}'`  
+Check with: `talosctl -n $TALOSIP get timestatus`
+
+5. 
 With this config you can apply the config file: 
 `talosctl apply-config -n $TALOSIP --insecure --file ./controlplane.yaml`  
 
