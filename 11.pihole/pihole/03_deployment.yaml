@@ -21,19 +21,20 @@ spec:
       containers:
         - name: pihole
           # Pin to a specific version — check latest stable at https://hub.docker.com/r/pihole/pihole/tags
-          image: pihole/pihole:2025.08.0
+          image: pihole/pihole:2026.10.1
           env:
             - name: TZ
               value: "Europe/Rome"
-            # Run FTL as root (instead of dropping to uid/gid 1000) so it can
+            # Run FTL as root (instead of dropping to the pihole user) so it can
             # write to /etc/pihole on the persistent hostPath, which the kubelet
             # creates as root:root 0755. This removes the need for a chown
             # initContainer. Acceptable here: the namespace is already
             # "privileged" and the container starts as root anyway.
-            - name: PIHOLE_UID
-              value: "0"
-            - name: PIHOLE_GID
-              value: "0"
+            # Do NOT use PIHOLE_UID=0 / PIHOLE_GID=0 for this: from 2026.10.0 it
+            # makes updatecheck.sh recurse endlessly at startup and exhausts the
+            # node RAM (docker-pi-hole#2085, fixed by pi-hole PR #6737).
+            - name: DNSMASQ_USER
+              value: "root"
             # Pi-hole v6 configuration via FTLCONF_* env vars
             - name: FTLCONF_webserver_api_password
               valueFrom:
@@ -91,6 +92,13 @@ spec:
               port: dns-tcp
             initialDelaySeconds: 30
             periodSeconds: 30
+          # Memory cap: if a startup bug loops again, only this container gets
+          # OOMKilled instead of starving the whole (single) node and the API server.
+          resources:
+            requests:
+              memory: 128Mi
+            limits:
+              memory: 512Mi
           volumeMounts:
             - name: pihole-data
               mountPath: /etc/pihole
