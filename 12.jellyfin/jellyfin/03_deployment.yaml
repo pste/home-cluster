@@ -21,7 +21,7 @@ spec:
       containers:
         - name: jellyfin
           # Pin to a specific version — check latest stable at https://hub.docker.com/r/jellyfin/jellyfin/tags
-          image: jellyfin/jellyfin:10.11.11
+          image: jellyfin/jellyfin:12.4
           env:
             - name: TZ
               value: "Europe/Rome"
@@ -33,6 +33,17 @@ spec:
             - name: http
               containerPort: 8096
               protocol: TCP
+          # Major upgrades (e.g. 10.11 -> 12.x) run DB migrations at startup and
+          # /health does not answer until they finish. Without this the liveness
+          # probe would kill the Pod mid-migration (~2 min), leaving the DB in a
+          # half-migrated state. startupProbe gates liveness/readiness with ~15 min
+          # of headroom (period 10s x 90).
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 90
           readinessProbe:
             httpGet:
               path: /health
