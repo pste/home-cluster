@@ -191,6 +191,21 @@ diff <(grep -vE '^\s*#' mc-live.yaml) <(grep -vE '^\s*#' controlplane.yaml)
 Note: `talosctl upgrade --image ...` does NOT update `machine.install.image` in the config, so that field stays at the first installed version.  
 Never commit `controlplane.yaml`/`mc-live.yaml`: they contain the cluster secrets.
 
+## Clean up leftover pods after reboots
+
+After every node reboot (Talos upgrade, shutdown, power loss handled gracefully) each Deployment seems to have an extra Pod in `Completed` state.  
+What they are: on a graceful node shutdown the kubelet stops every Pod cleanly; containers that exit with code 0 end in phase `Succeeded` (shown as `Completed`). When the node is back, the ReplicaSet no longer counts them as replicas, so it creates a fresh Pod and leaves the old one there for inspection.  
+They use no resources (no container runs, no CPU/RAM): they're only leftover API objects. Nothing removes them in practice: the controller-manager Pod GC kicks in only above `--terminated-pod-gc-threshold` (default 12500 Pods). They pile up at every reboot, so clean them after an upgrade.  
+Beware: `kubectl exec` on them fails silently, and counting Pods is misleading — check replicas with `kubectl get deploy -A` instead.
+
+Delete only the terminated Pods owned by a ReplicaSet (CronJob Pods and their logs are kept, they have their own history limits):
+```bash
+kubectl get pods -A --field-selector=status.phase==Succeeded -o json \
+  | jq -r '.items[] | select(.metadata.ownerReferences[0].kind=="ReplicaSet") | "\(.metadata.namespace) \(.metadata.name)"' \
+  | while read ns pod; do kubectl delete pod -n "$ns" "$pod"; done
+```
+To only list them, run the first two lines without the `| while ...` part.
+
 ## Upgrade Client talosctl
 ```bash
 # Remove the old binary (if required by permissions)
